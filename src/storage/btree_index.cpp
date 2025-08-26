@@ -72,6 +72,9 @@ void BTreeIndex::split_child(BTreeNode* parent, size_t index) {
     
     constexpr size_t mid = BTreeNode::MIN_DEGREE - 1;
     
+    // Extract the middle key before modifying the vectors
+    auto middle_entry = std::move(full_child->entries[mid]);
+    
     // Move half the entries to new node
     new_child->entries.assign(
         std::make_move_iterator(full_child->entries.begin() + mid + 1),
@@ -89,7 +92,6 @@ void BTreeIndex::split_child(BTreeNode* parent, size_t index) {
     }
     
     // Insert the middle key into parent
-    auto middle_entry = std::move(full_child->entries[mid]);
     parent->entries.insert(parent->entries.begin() + index, std::move(middle_entry));
     
     // Insert children back
@@ -139,7 +141,7 @@ void BTreeIndex::collect_range(const BTreeNode* node, const std::string& start_k
             results.push_back(entry);
         }
         
-        if (!node->is_leaf && entry.key >= start_key) {
+        if (!node->is_leaf && entry.key >= start_key && i < node->children.size()) {
             collect_range(node->children[i].get(), start_key, end_key, results);
         }
     }
