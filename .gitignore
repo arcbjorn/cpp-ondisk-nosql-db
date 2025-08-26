@@ -54,3 +54,5 @@ Thumbs.db
 # Package managers
 conan.lock
 vcpkg_installed/
+
+INSTRUCTIONS.md
