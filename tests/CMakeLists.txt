@@ -3,6 +3,7 @@ add_executable(tests
     test_btree_index.cpp
     test_api.cpp
     test_transactions.cpp
+    test_lsm_tree.cpp
     test_main.cpp
 )
 
