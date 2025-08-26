@@ -21,6 +21,7 @@ LogStorage::LogStorage(const std::filesystem::path& log_file)
     
     if (file_.is_open()) {
         spdlog::info("LogStorage opened: {}", log_path_.string());
+        rebuild_index();
     } else {
         spdlog::error("Failed to open log file: {}", log_path_.string());
     }
@@ -45,7 +46,10 @@ bool LogStorage::append(std::string_view key, std::string_view value) {
     }
     
     auto timestamp = current_timestamp();
+    auto file_offset = get_file_position();
+    
     serialize_record(key, value, timestamp);
+    index_.insert(std::string(key), file_offset, timestamp);
     
     spdlog::debug("Appended record: key={}, value={}, timestamp={}", 
                   key, value, timestamp);
@@ -58,20 +62,23 @@ std::optional<std::string> LogStorage::get(std::string_view key) const {
         return std::nullopt;
     }
     
-    file_.clear();
-    file_.seekg(0, std::ios::beg);
-    
-    std::string latest_value;
-    bool found = false;
-    
-    while (auto record = deserialize_record()) {
-        if (record->key == key) {
-            latest_value = record->value;
-            found = true;
-        }
+    // Use index for fast lookup
+    auto index_entry = index_.find(std::string(key));
+    if (!index_entry) {
+        return std::nullopt;
     }
     
-    return found ? std::optional<std::string>{latest_value} : std::nullopt;
+    // Seek to the indexed position and read the record
+    file_.clear();
+    file_.seekg(index_entry->file_offset, std::ios::beg);
+    
+    auto record = deserialize_record();
+    if (record && record->key == key) {
+        return record->value;
+    }
+    
+    spdlog::warn("Index inconsistency detected for key '{}'", key);
+    return std::nullopt;
 }
 
 std::vector<Record> LogStorage::get_all() const {
@@ -146,6 +153,44 @@ std::uint64_t LogStorage::current_timestamp() const {
     return std::chrono::duration_cast<std::chrono::microseconds>(
         std::chrono::steady_clock::now().time_since_epoch()
     ).count();
+}
+
+std::uint64_t LogStorage::get_file_position() const {
+    // Save current position
+    auto current_pos = file_.tellp();
+    
+    // Seek to end to get file size
+    file_.seekp(0, std::ios::end);
+    auto end_pos = static_cast<std::uint64_t>(file_.tellp());
+    
+    // Restore position
+    file_.seekp(current_pos);
+    
+    return end_pos;
+}
+
+void LogStorage::rebuild_index() {
+    index_.clear();
+    
+    if (!file_.is_open()) {
+        return;
+    }
+    
+    file_.clear();
+    file_.seekg(0, std::ios::beg);
+    
+    while (true) {
+        std::uint64_t offset = static_cast<std::uint64_t>(file_.tellg());
+        
+        auto record = deserialize_record();
+        if (!record) {
+            break;
+        }
+        
+        index_.insert(record->key, offset, record->timestamp);
+    }
+    
+    spdlog::info("Rebuilt B+Tree index with {} entries", index_.size());
 }
 
 } // namespace nosql_db::storage
