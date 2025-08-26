@@ -3,6 +3,7 @@
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include "storage/log_storage.hpp"
+#include "storage/transaction.hpp"
 #include <memory>
 #include <string_view>
 
@@ -17,6 +18,7 @@ public:
 
 private:
     std::shared_ptr<storage::LogStorage> storage_;
+    std::unique_ptr<storage::TransactionManager> transaction_manager_;
     
     // Route handlers
     void handle_put_key(const httplib::Request& req, httplib::Response& res);

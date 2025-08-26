@@ -7,7 +7,8 @@ using json = nlohmann::json;
 namespace nosql_db::api {
 
 KvController::KvController(std::shared_ptr<storage::LogStorage> storage)
-    : storage_(std::move(storage)) {}
+    : storage_(std::move(storage)), 
+      transaction_manager_(std::make_unique<storage::TransactionManager>(storage_)) {}
 
 void KvController::register_routes(httplib::Server& server) {
     // Enable CORS for web clients
@@ -79,8 +80,10 @@ void KvController::handle_put_key(const httplib::Request& req, httplib::Response
             }
         }
 
-        bool success = storage_->append(key, req.body);
-        if (!success) {
+        // Use transaction for atomicity
+        auto transaction = transaction_manager_->begin_transaction();
+        bool success = transaction->put(key, req.body);
+        if (!success || !transaction->commit()) {
             send_error_response(res, 500, "Failed to store key-value pair");
             return;
         }
@@ -109,7 +112,9 @@ void KvController::handle_get_key(const httplib::Request& req, httplib::Response
             return;
         }
 
-        auto value = storage_->get(key);
+        // Use transaction for consistent reads
+        auto transaction = transaction_manager_->begin_transaction();
+        auto value = transaction->get(key);
         if (!value) {
             send_error_response(res, 404, "Key not found");
             return;
@@ -150,18 +155,19 @@ void KvController::handle_delete_key(const httplib::Request& req, httplib::Respo
             return;
         }
 
+        // Use transaction for atomic delete operation
+        auto transaction = transaction_manager_->begin_transaction();
+        
         // Check if key exists before deletion
-        auto existing_value = storage_->get(key);
+        auto existing_value = transaction->get(key);
         if (!existing_value) {
             send_error_response(res, 404, "Key not found");
             return;
         }
 
-        // Store a tombstone marker (empty value could represent deletion)
-        // In a full implementation, you might want a separate deletion mechanism
-        bool success = storage_->append(key, "__DELETED__"); // Tombstone marker
-        storage_->sync(); // Ensure data is flushed to disk
-        if (!success) {
+        // Perform atomic delete
+        bool success = transaction->delete_key(key);
+        if (!success || !transaction->commit()) {
             send_error_response(res, 500, "Failed to delete key");
             return;
         }
