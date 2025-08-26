@@ -6,6 +6,8 @@ add_library(nosql_db STATIC
     storage/storage_engine.cpp
     api/kv_controller.cpp
     query/query_engine.cpp
+    network/binary_protocol.cpp
+    network/binary_server.cpp
 )
 
 target_link_libraries(nosql_db
@@ -28,5 +30,13 @@ add_executable(nosql_db_server
 )
 
 target_link_libraries(nosql_db_server
+    nosql_db
+)
+
+add_executable(nosql_db_binary_server
+    binary_server_main.cpp
+)
+
+target_link_libraries(nosql_db_binary_server
     nosql_db
 )

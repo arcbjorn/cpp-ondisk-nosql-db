@@ -5,6 +5,7 @@ add_executable(tests
     test_transactions.cpp
     test_lsm_tree.cpp
     test_query_engine.cpp
+    test_binary_protocol.cpp
     test_main.cpp
 )
 
