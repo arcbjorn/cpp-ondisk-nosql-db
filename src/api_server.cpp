@@ -1,5 +1,6 @@
 #include "api/kv_controller.hpp"
-#include "storage/log_storage.hpp"
+#include "storage/storage_engine.hpp"
+#include "query/query_engine.hpp"
 #include <spdlog/spdlog.h>
 #include <httplib.h>
 #include <memory>
@@ -60,16 +61,15 @@ int main(int argc, char* argv[]) {
     }
     
     try {
-        // Initialize storage
-        std::filesystem::path log_file = std::filesystem::path(data_dir) / "nosql.log";
-        auto storage = std::make_shared<nosql_db::storage::LogStorage>(log_file);
+        // Initialize storage engine with LSM-Tree
+        std::filesystem::path storage_dir = std::filesystem::path(data_dir);
+        auto storage_engine = std::make_shared<nosql_db::storage::StorageEngine>(
+            storage_dir, nosql_db::storage::StorageEngine::EngineType::LSMTree);
         
-        if (!storage->is_open()) {
-            spdlog::error("Failed to initialize storage at: {}", log_file.string());
-            return 1;
-        }
+        // Start compaction for optimal performance
+        storage_engine->start_compaction();
         
-        spdlog::info("Storage initialized: {}", log_file.string());
+        spdlog::info("StorageEngine initialized with LSM-Tree at: {}", storage_dir.string());
         
         // Set up signal handlers for graceful shutdown
         std::signal(SIGINT, signal_handler);
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         });
         
         // Register API controller
-        nosql_db::api::KvController controller(storage);
+        nosql_db::api::KvController controller(storage_engine);
         controller.register_routes(server);
         
         // Set server configuration

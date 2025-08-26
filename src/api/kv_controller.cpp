@@ -6,9 +6,9 @@ using json = nlohmann::json;
 
 namespace nosql_db::api {
 
-KvController::KvController(std::shared_ptr<storage::LogStorage> storage)
+KvController::KvController(std::shared_ptr<storage::StorageEngine> storage)
     : storage_(std::move(storage)), 
-      transaction_manager_(std::make_unique<storage::TransactionManager>(storage_)) {}
+      transaction_manager_(nullptr) {}
 
 void KvController::register_routes(httplib::Server& server) {
     // Enable CORS for web clients
@@ -80,10 +80,9 @@ void KvController::handle_put_key(const httplib::Request& req, httplib::Response
             }
         }
 
-        // Use transaction for atomicity
-        auto transaction = transaction_manager_->begin_transaction();
-        bool success = transaction->put(key, req.body);
-        if (!success || !transaction->commit()) {
+        // Use StorageEngine's direct put method
+        bool success = storage_->put(key, req.body);
+        if (!success) {
             send_error_response(res, 500, "Failed to store key-value pair");
             return;
         }
@@ -112,21 +111,13 @@ void KvController::handle_get_key(const httplib::Request& req, httplib::Response
             return;
         }
 
-        // Use transaction for consistent reads
-        auto transaction = transaction_manager_->begin_transaction();
-        auto value = transaction->get(key);
+        // Use StorageEngine's direct get method
+        auto value = storage_->get(key);
         if (!value) {
             send_error_response(res, 404, "Key not found");
             return;
         }
         
-        // Handle tombstones (deleted keys) as empty response
-        if (*value == "__DELETED__") {
-            res.set_content("", "text/plain");
-            res.status = 200;
-            spdlog::debug("GET /api/v1/kv/{} - tombstone (deleted)", key);
-            return;
-        }
 
         // Try to parse as JSON and return structured response, or raw value
         try {
@@ -155,19 +146,16 @@ void KvController::handle_delete_key(const httplib::Request& req, httplib::Respo
             return;
         }
 
-        // Use transaction for atomic delete operation
-        auto transaction = transaction_manager_->begin_transaction();
-        
         // Check if key exists before deletion
-        auto existing_value = transaction->get(key);
+        auto existing_value = storage_->get(key);
         if (!existing_value) {
             send_error_response(res, 404, "Key not found");
             return;
         }
 
-        // Perform atomic delete
-        bool success = transaction->delete_key(key);
-        if (!success || !transaction->commit()) {
+        // Perform delete operation
+        bool success = storage_->delete_key(key);
+        if (!success) {
             send_error_response(res, 500, "Failed to delete key");
             return;
         }
@@ -199,15 +187,10 @@ void KvController::handle_list_keys(const httplib::Request& req, httplib::Respon
 
         auto records = storage_->get_all();
         
-        // Build unique key list (latest values only)
+        // Build unique key list (latest values only - StorageEngine already handles tombstones)
         std::unordered_map<std::string, std::string> unique_keys;
         for (const auto& record : records) {
-            // Skip tombstones (deleted keys)
-            if (record.value != "__DELETED__") {
-                unique_keys[record.key] = record.value;
-            } else {
-                unique_keys.erase(record.key); // Remove deleted keys
-            }
+            unique_keys[record.key] = record.value;
         }
 
         // Apply pagination

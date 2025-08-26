@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "api/kv_controller.hpp"
-#include "storage/log_storage.hpp"
+#include "storage/storage_engine.hpp"
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 #include <thread>
@@ -14,11 +14,11 @@ namespace {
     class TestHttpServer {
     public:
         TestHttpServer() : port_(0) {
-            // Create temporary storage
-            temp_file_ = std::filesystem::temp_directory_path() / "test_api.log";
-            std::filesystem::remove(temp_file_);
+            // Create temporary storage directory
+            temp_dir_ = std::filesystem::temp_directory_path() / "test_api_storage";
+            std::filesystem::remove_all(temp_dir_);
             
-            storage_ = std::make_shared<storage::LogStorage>(temp_file_);
+            storage_ = std::make_shared<storage::StorageEngine>(temp_dir_, storage::StorageEngine::EngineType::LSMTree);
             controller_ = std::make_unique<api::KvController>(storage_);
             
             // Find available port
@@ -31,7 +31,7 @@ namespace {
         
         ~TestHttpServer() {
             stop();
-            std::filesystem::remove(temp_file_);
+            std::filesystem::remove_all(temp_dir_);
         }
         
         bool start() {
@@ -85,8 +85,8 @@ namespace {
     private:
         httplib::Server server_;
         std::thread server_thread_;
-        std::filesystem::path temp_file_;
-        std::shared_ptr<storage::LogStorage> storage_;
+        std::filesystem::path temp_dir_;
+        std::shared_ptr<storage::StorageEngine> storage_;
         std::unique_ptr<api::KvController> controller_;
         int port_;
     };
@@ -231,11 +231,10 @@ TEST_CASE("HTTP API Integration Tests", "[api]") {
         REQUIRE(delete_res);
         REQUIRE(delete_res->status == 204);
         
-        // Verify it's deleted (should return empty value which we treat as not found)
+        // Verify it's deleted (should return 404 since key no longer exists)
         auto get_res2 = client.Get("/api/v1/kv/delete:test");
         REQUIRE(get_res2);
-        REQUIRE(get_res2->status == 200);
-        REQUIRE(get_res2->body.empty()); // Tombstone is empty string
+        REQUIRE(get_res2->status == 404);
     }
     
     SECTION("List keys endpoint") {

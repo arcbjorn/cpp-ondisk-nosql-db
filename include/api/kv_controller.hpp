@@ -2,7 +2,7 @@
 
 #include <httplib.h>
 #include <nlohmann/json.hpp>
-#include "storage/log_storage.hpp"
+#include "storage/storage_engine.hpp"
 #include "storage/transaction.hpp"
 #include <memory>
 #include <string_view>
@@ -11,13 +11,13 @@ namespace nosql_db::api {
 
 class KvController {
 public:
-    explicit KvController(std::shared_ptr<storage::LogStorage> storage);
+    explicit KvController(std::shared_ptr<storage::StorageEngine> storage);
     
     // Register all routes with the HTTP server
     void register_routes(httplib::Server& server);
 
 private:
-    std::shared_ptr<storage::LogStorage> storage_;
+    std::shared_ptr<storage::StorageEngine> storage_;
     std::unique_ptr<storage::TransactionManager> transaction_manager_;
     
     // Route handlers
