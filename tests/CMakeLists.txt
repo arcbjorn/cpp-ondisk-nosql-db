@@ -2,6 +2,7 @@ add_executable(tests
     test_log_storage.cpp
     test_btree_index.cpp
     test_api.cpp
+    test_transactions.cpp
     test_main.cpp
 )
 
