@@ -5,6 +5,7 @@ add_library(nosql_db STATIC
     storage/lsm_tree.cpp
     storage/storage_engine.cpp
     api/kv_controller.cpp
+    query/query_engine.cpp
 )
 
 target_link_libraries(nosql_db
