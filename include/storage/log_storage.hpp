@@ -6,6 +6,7 @@
 #include <optional>
 #include <vector>
 #include <cstdint>
+#include <shared_mutex>
 #include "btree_index.hpp"
 
 namespace nosql_db::storage {
@@ -32,6 +33,9 @@ private:
     std::filesystem::path log_path_;
     mutable std::fstream file_;
     BTreeIndex index_;
+    
+    // Thread safety
+    mutable std::shared_mutex mutex_;
     
     void serialize_record(std::string_view key, std::string_view value, std::uint64_t timestamp);
     std::optional<Record> deserialize_record() const;

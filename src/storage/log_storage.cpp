@@ -40,6 +40,8 @@ LogStorage::~LogStorage() {
 }
 
 bool LogStorage::append(std::string_view key, std::string_view value) {
+    std::unique_lock lock(mutex_); // Exclusive lock for writes
+    
     if (!file_.is_open()) {
         spdlog::error("Log file is not open");
         return false;
@@ -78,6 +80,8 @@ bool LogStorage::append(std::string_view key, std::string_view value) {
 }
 
 std::optional<std::string> LogStorage::get(std::string_view key) const {
+    std::shared_lock lock(mutex_); // Shared lock for reads
+    
     if (!file_.is_open()) {
         spdlog::error("Log file is not open");
         return std::nullopt;
@@ -102,6 +106,7 @@ std::optional<std::string> LogStorage::get(std::string_view key) const {
 }
 
 std::vector<Record> LogStorage::get_all() const {
+    std::shared_lock lock(mutex_); // Shared lock for reads
     std::vector<Record> records;
     
     if (!file_.is_open()) {
@@ -120,6 +125,7 @@ std::vector<Record> LogStorage::get_all() const {
 }
 
 void LogStorage::sync() {
+    std::unique_lock lock(mutex_); // Exclusive lock for sync
     if (file_.is_open()) {
         file_.flush();
         spdlog::debug("Log file synced");
@@ -127,6 +133,7 @@ void LogStorage::sync() {
 }
 
 bool LogStorage::is_open() const {
+    std::shared_lock lock(mutex_); // Shared lock for reads
     return file_.is_open();
 }
 
