@@ -2,6 +2,8 @@ add_library(nosql_db STATIC
     storage/log_storage.cpp
     storage/btree_index.cpp
     storage/transaction.cpp
+    storage/lsm_tree.cpp
+    storage/storage_engine.cpp
     api/kv_controller.cpp
 )
 
