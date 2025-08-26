@@ -28,6 +28,9 @@ public:
     
     void sync();
     bool is_open() const;
+    
+    // File path access for LSM-Tree operations
+    const std::filesystem::path& get_file_path() const { return log_path_; }
 
 private:
     std::filesystem::path log_path_;
