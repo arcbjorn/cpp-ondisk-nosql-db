@@ -1,5 +1,6 @@
 add_library(nosql_db STATIC
     storage/log_storage.cpp
+    storage/btree_index.cpp
 )
 
 target_link_libraries(nosql_db
