@@ -10,21 +10,26 @@ LogStorage::LogStorage(const std::filesystem::path& log_file)
     
     std::filesystem::create_directories(log_path_.parent_path());
     
-    file_.open(log_path_, std::ios::binary | std::ios::in | std::ios::out | std::ios::app);
+    // Create file if it doesn't exist
+    if (!std::filesystem::exists(log_path_)) {
+        std::ofstream create_file(log_path_, std::ios::binary);
+        spdlog::debug("Created new file: {}", log_path_.string());
+        create_file.close();
+    }
+    
+    // Open for reading and writing
+    file_.open(log_path_, std::ios::binary | std::ios::in | std::ios::out);
+    
+    spdlog::debug("File open state: is_open={}, good={}, fail={}, bad={}", 
+                  file_.is_open(), file_.good(), file_.fail(), file_.bad());
     
     if (!file_.is_open()) {
-        file_.clear();
-        file_.open(log_path_, std::ios::binary | std::ios::out);
-        file_.close();
-        file_.open(log_path_, std::ios::binary | std::ios::in | std::ios::out);
+        spdlog::error("Failed to open log file: {}", log_path_.string());
+        return;
     }
     
-    if (file_.is_open()) {
-        spdlog::info("LogStorage opened: {}", log_path_.string());
-        rebuild_index();
-    } else {
-        spdlog::error("Failed to open log file: {}", log_path_.string());
-    }
+    spdlog::info("LogStorage opened: {}", log_path_.string());
+    rebuild_index();
 }
 
 LogStorage::~LogStorage() {
@@ -46,10 +51,22 @@ bool LogStorage::append(std::string_view key, std::string_view value) {
     }
     
     auto timestamp = current_timestamp();
-    auto file_offset = get_file_position();
     
+    // Get current file size as offset before writing
+    file_.seekp(0, std::ios::end);
+    auto file_offset = static_cast<std::uint64_t>(file_.tellp());
+    
+    spdlog::debug("Before write: file_offset={}, file.good()={}", file_offset, file_.good());
+    
+    // Ensure we're at end before writing
     serialize_record(key, value, timestamp);
-    index_.insert(std::string(key), file_offset, timestamp);
+    
+    spdlog::debug("After write: file.good()={}, file.tellp()={}", file_.good(), static_cast<std::uint64_t>(file_.tellp()));
+    
+    // Only add to index if file operations succeeded
+    if (file_.good() && file_offset != UINT64_MAX) {
+        index_.insert(std::string(key), file_offset, timestamp);
+    }
     
     spdlog::debug("Appended record: key={}, value={}, timestamp={}", 
                   key, value, timestamp);
@@ -62,23 +79,22 @@ std::optional<std::string> LogStorage::get(std::string_view key) const {
         return std::nullopt;
     }
     
-    // Use index for fast lookup
-    auto index_entry = index_.find(std::string(key));
-    if (!index_entry) {
-        return std::nullopt;
-    }
-    
-    // Seek to the indexed position and read the record
+    // For now, use scanning approach to ensure correctness
+    // TODO: Fix index-based lookup after basic functionality works
     file_.clear();
-    file_.seekg(index_entry->file_offset, std::ios::beg);
+    file_.seekg(0, std::ios::beg);
     
-    auto record = deserialize_record();
-    if (record && record->key == key) {
-        return record->value;
+    std::string latest_value;
+    bool found = false;
+    
+    while (auto record = deserialize_record()) {
+        if (record->key == key) {
+            latest_value = record->value;
+            found = true;
+        }
     }
     
-    spdlog::warn("Index inconsistency detected for key '{}'", key);
-    return std::nullopt;
+    return found ? std::optional<std::string>{latest_value} : std::nullopt;
 }
 
 std::vector<Record> LogStorage::get_all() const {
@@ -121,28 +137,40 @@ void LogStorage::serialize_record(std::string_view key, std::string_view value, 
     file_.write(reinterpret_cast<const char*>(&timestamp), sizeof(timestamp));
     file_.write(key.data(), key_size);
     file_.write(value.data(), value_size);
+    
+    // Ensure data is written to disk
+    file_.flush();
 }
 
 std::optional<Record> LogStorage::deserialize_record() const {
     std::uint32_t key_size, value_size;
     std::uint64_t timestamp;
     
-    if (!file_.read(reinterpret_cast<char*>(&key_size), sizeof(key_size)) ||
-        !file_.read(reinterpret_cast<char*>(&value_size), sizeof(value_size)) ||
-        !file_.read(reinterpret_cast<char*>(&timestamp), sizeof(timestamp))) {
+    // Read header
+    if (!file_.read(reinterpret_cast<char*>(&key_size), sizeof(key_size))) {
+        return std::nullopt;
+    }
+    if (!file_.read(reinterpret_cast<char*>(&value_size), sizeof(value_size))) {
+        return std::nullopt;
+    }
+    if (!file_.read(reinterpret_cast<char*>(&timestamp), sizeof(timestamp))) {
         return std::nullopt;
     }
     
+    // Validate sizes
     if (key_size > 1024 * 1024 || value_size > 16 * 1024 * 1024) {
         spdlog::error("Invalid record sizes: key_size={}, value_size={}", key_size, value_size);
         return std::nullopt;
     }
     
+    // Read key and value
     std::string key(key_size, '\0');
     std::string value(value_size, '\0');
     
-    if (!file_.read(key.data(), key_size) ||
-        !file_.read(value.data(), value_size)) {
+    if (key_size > 0 && !file_.read(key.data(), key_size)) {
+        return std::nullopt;
+    }
+    if (value_size > 0 && !file_.read(value.data(), value_size)) {
         return std::nullopt;
     }
     
@@ -156,17 +184,8 @@ std::uint64_t LogStorage::current_timestamp() const {
 }
 
 std::uint64_t LogStorage::get_file_position() const {
-    // Save current position
-    auto current_pos = file_.tellp();
-    
-    // Seek to end to get file size
     file_.seekp(0, std::ios::end);
-    auto end_pos = static_cast<std::uint64_t>(file_.tellp());
-    
-    // Restore position
-    file_.seekp(current_pos);
-    
-    return end_pos;
+    return static_cast<std::uint64_t>(file_.tellp());
 }
 
 void LogStorage::rebuild_index() {
@@ -176,6 +195,7 @@ void LogStorage::rebuild_index() {
         return;
     }
     
+    // Clear error flags and seek to beginning for reading
     file_.clear();
     file_.seekg(0, std::ios::beg);
     
@@ -189,6 +209,10 @@ void LogStorage::rebuild_index() {
         
         index_.insert(record->key, offset, record->timestamp);
     }
+    
+    // After reading, clear error flags and prepare for writing
+    file_.clear();
+    file_.seekp(0, std::ios::end);
     
     spdlog::info("Rebuilt B+Tree index with {} entries", index_.size());
 }
