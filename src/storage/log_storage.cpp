@@ -52,7 +52,8 @@ bool LogStorage::append(std::string_view key, std::string_view value) {
     
     auto timestamp = current_timestamp();
     
-    // Get current file size as offset before writing
+    // Clear any error flags and ensure file is ready for writing
+    file_.clear();
     file_.seekp(0, std::ios::end);
     auto file_offset = static_cast<std::uint64_t>(file_.tellp());
     
@@ -64,13 +65,16 @@ bool LogStorage::append(std::string_view key, std::string_view value) {
     spdlog::debug("After write: file.good()={}, file.tellp()={}", file_.good(), static_cast<std::uint64_t>(file_.tellp()));
     
     // Only add to index if file operations succeeded
-    if (file_.good() && file_offset != UINT64_MAX) {
+    bool write_succeeded = file_.good() && file_offset != UINT64_MAX;
+    if (write_succeeded) {
         index_.insert(std::string(key), file_offset, timestamp);
+        spdlog::debug("Appended record: key={}, value={}, timestamp={}", 
+                      key, value, timestamp);
+    } else {
+        spdlog::error("Failed to write record: key={}, file.good()={}", key, file_.good());
     }
     
-    spdlog::debug("Appended record: key={}, value={}, timestamp={}", 
-                  key, value, timestamp);
-    return true;
+    return write_succeeded;
 }
 
 std::optional<std::string> LogStorage::get(std::string_view key) const {
