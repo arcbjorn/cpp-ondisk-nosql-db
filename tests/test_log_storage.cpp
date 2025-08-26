@@ -107,5 +107,24 @@ TEST_CASE("LogStorage basic operations", "[storage]") {
         REQUIRE(records[0].timestamp < records[1].timestamp);
     }
     
+    SECTION("Index-based fast lookup") {
+        LogStorage storage(test_file);
+        
+        // Add many records to test index performance
+        for (int i = 0; i < 1000; ++i) {
+            std::string key = "key_" + std::to_string(i);
+            std::string value = "value_" + std::to_string(i);
+            REQUIRE(storage.append(key, value));
+        }
+        
+        // Test random lookups
+        auto result = storage.get("key_500");
+        REQUIRE(result.has_value());
+        REQUIRE(result.value() == "value_500");
+        
+        auto missing = storage.get("nonexistent");
+        REQUIRE(!missing.has_value());
+    }
+    
     std::filesystem::remove(test_file);
 }
