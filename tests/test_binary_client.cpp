@@ -173,15 +173,15 @@ TEST_CASE("BinaryClient - Query Operations", "[network][client]") {
     BinaryClient configured_client(config);
     REQUIRE(configured_client.connect());
     
-    // Setup test data (runs before all sections)
-    REQUIRE(configured_client.put("user:alice", "Alice Smith"));
-    REQUIRE(configured_client.put("user:bob", "Bob Jones"));
-    REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
-    REQUIRE(configured_client.put("post:1", "Hello World"));
-    REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
-    REQUIRE(configured_client.put("config:theme", "dark"));
-    
     SECTION("SCAN query") {
+        // Setup test data for this section
+        REQUIRE(configured_client.put("user:alice", "Alice Smith"));
+        REQUIRE(configured_client.put("user:bob", "Bob Jones"));
+        REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
+        REQUIRE(configured_client.put("post:1", "Hello World"));
+        REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
+        REQUIRE(configured_client.put("config:theme", "dark"));
+        
         auto results = configured_client.query("SCAN");
         REQUIRE(results.size() >= 6); // At least the test data we inserted
         
@@ -190,6 +190,14 @@ TEST_CASE("BinaryClient - Query Operations", "[network][client]") {
     }
     
     SECTION("PREFIX query") {
+        // Setup test data for this section
+        REQUIRE(configured_client.put("user:alice", "Alice Smith"));
+        REQUIRE(configured_client.put("user:bob", "Bob Jones"));
+        REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
+        REQUIRE(configured_client.put("post:1", "Hello World"));
+        REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
+        REQUIRE(configured_client.put("config:theme", "dark"));
+        
         auto user_results = configured_client.query("PREFIX user:");
         REQUIRE(user_results.size() == 3);
         
@@ -201,11 +209,27 @@ TEST_CASE("BinaryClient - Query Operations", "[network][client]") {
     }
     
     SECTION("RANGE query") {
+        // Setup test data for this section
+        REQUIRE(configured_client.put("user:alice", "Alice Smith"));
+        REQUIRE(configured_client.put("user:bob", "Bob Jones"));
+        REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
+        REQUIRE(configured_client.put("post:1", "Hello World"));
+        REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
+        REQUIRE(configured_client.put("config:theme", "dark"));
+        
         auto range_results = configured_client.query("RANGE post:1 post:2");
         REQUIRE(range_results.size() >= 2);
     }
     
     SECTION("COUNT query") {
+        // Setup test data for this section
+        REQUIRE(configured_client.put("user:alice", "Alice Smith"));
+        REQUIRE(configured_client.put("user:bob", "Bob Jones"));
+        REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
+        REQUIRE(configured_client.put("post:1", "Hello World"));
+        REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
+        REQUIRE(configured_client.put("config:theme", "dark"));
+        
         auto count_results = configured_client.query("COUNT");
         REQUIRE(count_results.size() == 1);
         // The count should be in the value of the result
