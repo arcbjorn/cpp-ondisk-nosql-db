@@ -71,8 +71,9 @@ namespace {
         
         // Wildcard patterns (e.g., 192.168.*.*)
         std::string regex_pattern = pattern;
-        std::replace(regex_pattern.begin(), regex_pattern.end(), '*', '.');
-        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\."), "\\.");
+        // First escape dots
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\."), "\\\\.");
+        // Then replace * with .*
         regex_pattern = std::regex_replace(regex_pattern, std::regex("\\*"), ".*");
         
         try {
