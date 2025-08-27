@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <fstream>
+#include <shared_mutex>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -241,6 +242,10 @@ std::string AuthToken::generate_token_id() const {
 }
 
 // AuthManager implementation
+AuthManager::AuthManager()
+    : AuthManager(AuthConfig{}) {
+}
+
 AuthManager::AuthManager(const AuthConfig& config) : config_(config) {
     spdlog::info("AuthManager initialized with token validity: {} minutes", 
                 config_.token_validity_duration.count());

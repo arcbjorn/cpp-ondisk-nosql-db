@@ -8,6 +8,7 @@
 #include <optional>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 #include <functional>
 
 namespace nosql_db::security {
@@ -124,6 +125,7 @@ private:
  */
 class AuthToken {
 public:
+    AuthToken() = default;
     AuthToken(const std::string& user_id, const std::vector<Permission>& permissions,
               std::chrono::minutes validity_duration = std::chrono::minutes(60));
     
@@ -172,7 +174,8 @@ public:
         std::string jwt_secret_key = "default_secret_change_me";
     };
     
-    explicit AuthManager(const AuthConfig& config = AuthConfig{});
+    AuthManager();
+    explicit AuthManager(const AuthConfig& config);
     ~AuthManager() = default;
     
     // User management
