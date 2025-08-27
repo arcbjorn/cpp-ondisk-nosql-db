@@ -1,8 +1,8 @@
-# NoSQL Database Architecture
+# IshikuraDB（石蔵） Architecture
 
 ## Overview
 
-This is a high-performance, secure NoSQL database system built in C++ with enterprise-grade security features. The system provides ACID transactions, multiple storage engines, binary protocol communications, TLS encryption, and comprehensive audit logging.
+This is a high-performance, secure IshikuraDB（石蔵） database system built in C++ with enterprise-grade security features. The system provides ACID transactions, multiple storage engines, binary protocol communications, TLS encryption, and comprehensive audit logging.
 
 ## System Architecture
 
@@ -285,13 +285,13 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j4
 
 # Generate certificates
-./src/nosql_db_tls_server --generate-cert
+./src/ishikura_tls_server --generate-cert
 
 # Start the database server
-./src/nosql_db_tls_server --config config.yaml
+./src/ishikura_tls_server --config config.yaml
 
 # Create API keys
-./src/nosql_db_api_key_manager generate "app_key" "application" \
+./src/ishikura_api_key_manager generate "app_key" "application" \
   --permissions "read,write,query"
 ```
 
@@ -299,10 +299,10 @@ make -j4
 ```dockerfile
 FROM ubuntu:22.04
 RUN apt-get update && apt-get install -y libssl-dev
-COPY build/src/nosql_db_tls_server /usr/local/bin/
-COPY config.yaml /etc/nosqldb/
+COPY build/src/ishikura_tls_server /usr/local/bin/
+COPY config.yaml /etc/ishikura/
 EXPOSE 9443
-CMD ["nosql_db_tls_server", "--config", "/etc/nosqldb/config.yaml"]
+CMD ["ishikura_tls_server", "--config", "/etc/ishikura/config.yaml"]
 ```
 
 ### Kubernetes Deployment
@@ -310,27 +310,27 @@ CMD ["nosql_db_tls_server", "--config", "/etc/nosqldb/config.yaml"]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nosqldb-server
+  name: ishikura-server
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: nosqldb-server
+      app: ishikura-server
   template:
     metadata:
       labels:
-        app: nosqldb-server
+        app: ishikura-server
     spec:
       containers:
-      - name: nosqldb
-        image: nosqldb:latest
+      - name: ishikura
+        image: ishikura:latest
         ports:
         - containerPort: 9443
         volumeMounts:
         - name: data-volume
           mountPath: /data
         - name: config-volume
-          mountPath: /etc/nosqldb
+          mountPath: /etc/ishikura
 ```
 
 ## Testing Strategy
@@ -566,4 +566,4 @@ public:
 
 ---
 
-*This architecture document provides a comprehensive overview of the NoSQL database system's design, implementation, and future enhancement possibilities. The system is designed to be secure, scalable, and maintainable while providing high performance for enterprise workloads.*
+*This architecture document provides a comprehensive overview of the IshikuraDB（石蔵） database system's design, implementation, and future enhancement possibilities. The system is designed to be secure, scalable, and maintainable while providing high performance for enterprise workloads.*
