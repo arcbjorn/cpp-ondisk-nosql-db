@@ -83,12 +83,17 @@ int main(int argc, char* argv[]) {
         nosql_db::network::BinaryServer::ServerConfig config;
         config.host = host;
         config.port = port;
-        config.max_connections = max_connections;
         config.worker_threads = worker_threads;
-        config.client_timeout = std::chrono::seconds(300); // 5 minutes
-        config.keepalive_interval = std::chrono::seconds(60); // 1 minute
         config.enable_compression = false;
         config.enable_batching = true;
+        
+        // Configure connection pool
+        config.pool_config.max_connections = max_connections;
+        config.pool_config.session_timeout = std::chrono::seconds(300); // 5 minutes
+        config.pool_config.idle_timeout = std::chrono::seconds(60); // 1 minute
+        config.pool_config.max_connections_per_ip = 100;
+        config.pool_config.enable_rate_limiting = true;
+        config.pool_config.requests_per_second_limit = 1000;
         
         // Create and start binary server
         nosql_db::network::BinaryServer server(storage_engine, config);
@@ -108,11 +113,13 @@ int main(int argc, char* argv[]) {
         while (!g_shutdown) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             
-            // Print statistics every 30 seconds
+            // Print statistics every 60 seconds
             static auto last_stats_time = std::chrono::steady_clock::now();
             auto now = std::chrono::steady_clock::now();
-            if (now - last_stats_time >= std::chrono::seconds(30)) {
+            if (now - last_stats_time >= std::chrono::seconds(60)) {
                 const auto& stats = server.stats();
+                const auto& metrics = server.metrics();
+                
                 spdlog::info("Server stats: {} active connections, {} total requests, {} total responses, "
                            "{} errors, {} timeouts",
                            stats.active_connections.load(),
@@ -120,6 +127,15 @@ int main(int argc, char* argv[]) {
                            stats.total_responses.load(),
                            stats.errors.load(),
                            stats.timeouts.load());
+                
+                spdlog::info("Metrics: {:.2f} req/s, {:.2f}ms avg response, {:.2f}% error rate, "
+                           "{} MB sent, {} MB received",
+                           metrics->get_requests_per_second(),
+                           metrics->get_average_response_time_ms(),
+                           metrics->get_error_rate(),
+                           metrics->bandwidth_metrics().bytes_sent.load() / (1024 * 1024),
+                           metrics->bandwidth_metrics().bytes_received.load() / (1024 * 1024));
+                           
                 last_stats_time = now;
             }
         }
