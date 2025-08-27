@@ -1,4 +1,4 @@
-add_library(nosql_db STATIC
+add_library(ishikura STATIC
     storage/log_storage.cpp
     storage/btree_index.cpp
     storage/transaction.cpp
@@ -20,7 +20,7 @@ add_library(nosql_db STATIC
     security/api_key.cpp
 )
 
-target_link_libraries(nosql_db
+target_link_libraries(ishikura
     fmt::fmt
     spdlog::spdlog
     httplib::httplib
@@ -29,58 +29,58 @@ target_link_libraries(nosql_db
     OpenSSL::Crypto
 )
 
-add_executable(nosql_db_main
+add_executable(ishikura_main
     main.cpp
 )
 
-target_link_libraries(nosql_db_main
-    nosql_db
+target_link_libraries(ishikura_main
+    ishikura
 )
 
-add_executable(nosql_db_server
+add_executable(ishikura_server
     api_server.cpp
 )
 
-target_link_libraries(nosql_db_server
-    nosql_db
+target_link_libraries(ishikura_server
+    ishikura
 )
 
-add_executable(nosql_db_binary_server
+add_executable(ishikura_binary_server
     binary_server_main.cpp
 )
 
-target_link_libraries(nosql_db_binary_server
-    nosql_db
+target_link_libraries(ishikura_binary_server
+    ishikura
 )
 
-add_executable(nosql_db_client_demo
+add_executable(ishikura_client_demo
     client_demo.cpp
 )
 
-target_link_libraries(nosql_db_client_demo
-    nosql_db
+target_link_libraries(ishikura_client_demo
+    ishikura
 )
 
-add_executable(nosql_db_tls_server
+add_executable(ishikura_tls_server
     tls_server_main.cpp
 )
 
-target_link_libraries(nosql_db_tls_server
-    nosql_db
+target_link_libraries(ishikura_tls_server
+    ishikura
 )
 
-add_executable(nosql_db_tls_client
+add_executable(ishikura_tls_client
     tls_client_demo.cpp
 )
 
-target_link_libraries(nosql_db_tls_client
-    nosql_db
+target_link_libraries(ishikura_tls_client
+    ishikura
 )
 
-add_executable(nosql_db_api_key_manager
+add_executable(ishikura_api_key_manager
     api_key_manager.cpp
 )
 
-target_link_libraries(nosql_db_api_key_manager
-    nosql_db
+target_link_libraries(ishikura_api_key_manager
+    ishikura
 )
