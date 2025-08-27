@@ -6,7 +6,7 @@
 #include <vector>
 #include <chrono>
 
-using namespace nosql_db::storage;
+using namespace ishikura::storage;
 
 namespace {
     class TransactionTestFixture {

@@ -9,8 +9,8 @@
 #include <fstream>
 #include <filesystem>
 
-using namespace nosql_db::security;
-using namespace nosql_db::network;
+using namespace ishikura::security;
+using namespace ishikura::network;
 
 // Helper class for temporary file management
 class TempFileManager {

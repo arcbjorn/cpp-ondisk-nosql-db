@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <chrono>
 
-using namespace nosql_db::storage;
+using namespace ishikura::storage;
 
 TEST_CASE("BTreeIndex basic operations", "[btree]") {
     BTreeIndex index;

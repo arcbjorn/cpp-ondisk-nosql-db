@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <thread>
 
-using namespace nosql_db::storage;
+using namespace ishikura::storage;
 
 TEST_CASE("LogStorage basic operations", "[storage]") {
     const auto test_file = std::filesystem::temp_directory_path() / "test_log.log";

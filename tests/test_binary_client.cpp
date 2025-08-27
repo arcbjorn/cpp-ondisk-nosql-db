@@ -5,8 +5,8 @@
 #include <chrono>
 #include <filesystem>
 
-using namespace nosql_db::network;
-using namespace nosql_db::storage;
+using namespace ishikura::network;
+using namespace ishikura::storage;
 
 class TestServer {
 public:

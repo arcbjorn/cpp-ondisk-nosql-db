@@ -4,7 +4,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace nosql_db::network;
+using namespace ishikura::network;
 using Catch::Matchers::WithinRel;
 
 TEST_CASE("NetworkMetrics - Basic Functionality", "[network][metrics]") {

@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 
-using namespace nosql_db::network;
+using namespace ishikura::network;
 
 TEST_CASE("ConnectionPool - Basic Functionality", "[network][connection_pool]") {
     ConnectionPool::PoolConfig config;

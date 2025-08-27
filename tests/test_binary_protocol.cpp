@@ -2,7 +2,7 @@
 #include "network/binary_protocol.hpp"
 #include <vector>
 
-using namespace nosql_db::network;
+using namespace ishikura::network;
 
 TEST_CASE("BinaryMessage basic functionality", "[binary_protocol][basic]") {
     SECTION("Message creation and serialization") {

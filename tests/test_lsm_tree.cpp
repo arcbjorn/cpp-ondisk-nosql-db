@@ -5,7 +5,7 @@
 #include <thread>
 #include <chrono>
 
-using namespace nosql_db::storage;
+using namespace ishikura::storage;
 
 TEST_CASE("LSMTree basic operations", "[lsm][storage]") {
     const auto test_dir = std::filesystem::temp_directory_path() / "test_lsm";

@@ -8,7 +8,7 @@
 #include <chrono>
 
 using json = nlohmann::json;
-using namespace nosql_db;
+using namespace ishikura;
 
 namespace {
     class TestHttpServer {

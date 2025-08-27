@@ -3,8 +3,8 @@
 #include "storage/storage_engine.hpp"
 #include <filesystem>
 
-using namespace nosql_db::query;
-using namespace nosql_db::storage;
+using namespace ishikura::query;
+using namespace ishikura::storage;
 
 TEST_CASE("QueryEngine basic operations", "[query][basic]") {
     const auto test_dir = std::filesystem::temp_directory_path() / "test_query_basic";
