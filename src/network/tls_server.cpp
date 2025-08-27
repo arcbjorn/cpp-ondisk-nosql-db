@@ -3,6 +3,7 @@
 #include "network/metrics.hpp"
 #include "network/connection_pool.hpp"
 #include "storage/storage_engine.hpp"
+#include "security/audit.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -173,6 +174,17 @@ TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, 
     pool_config.requests_per_second_limit = config_.pool_config.requests_per_second_limit;
     
     connection_pool_ = std::make_shared<ConnectionPool>(pool_config);
+    
+    // Initialize audit system if not already initialized
+    if (!nosql_db::security::AuditManager::is_initialized()) {
+        nosql_db::security::AuditConfig audit_config;
+        audit_config.log_file = "tls_server_audit.log";
+        audit_config.enable_file_logging = true;
+        audit_config.enable_async_logging = true;
+        audit_config.min_severity = nosql_db::security::AuditSeverity::INFO;
+        
+        nosql_db::security::AuditManager::initialize(audit_config);
+    }
 }
 
 TLSServer::~TLSServer() {
@@ -233,6 +245,11 @@ bool TLSServer::start() {
     }
     
     std::cout << "TLS Server started on " << config_.host << ":" << config_.port << std::endl;
+    
+    // Log server startup
+    AUDIT_ADMIN("system", "TLS server startup", 
+               "Host: " + config_.host + ", Port: " + std::to_string(config_.port), true);
+    
     return true;
 }
 
@@ -258,6 +275,9 @@ void TLSServer::stop() {
     worker_threads_.clear();
     
     std::cout << "TLS Server stopped" << std::endl;
+    
+    // Log server shutdown
+    AUDIT_ADMIN("system", "TLS server shutdown", "Graceful shutdown completed", true);
 }
 
 bool TLSServer::initialize_ssl() {
@@ -453,10 +473,15 @@ void TLSServer::worker_thread(int worker_id) {
         inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
         std::string client_address = std::string(client_ip) + ":" + std::to_string(ntohs(client_addr.sin_port));
         
-        // Check if we can accept this connection
+            // Check if we can accept this connection
         std::string ip = std::string(client_ip);
         if (!connection_pool_->can_accept_connection(ip)) {
             std::cerr << "Connection rejected from " << client_address << " (rate limit or connection limit reached)" << std::endl;
+            
+            // Log security event for rate limiting
+            AUDIT_SECURITY("Connection rejected due to rate limit from " + client_address, 
+                          nosql_db::security::AuditSeverity::WARNING);
+            
             close(client_socket);
             metrics_->record_network_error();
             continue;
@@ -465,6 +490,10 @@ void TLSServer::worker_thread(int worker_id) {
         // Create TLS connection
         auto tls_connection = accept_tls_connection(client_socket);
         if (!tls_connection) {
+            // Log TLS handshake failure
+            AUDIT_SECURITY("TLS handshake failed from " + client_address, 
+                          nosql_db::security::AuditSeverity::WARNING);
+            
             close(client_socket);
             metrics_->record_network_error();
             continue;
@@ -537,6 +566,23 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
     auto start_time = std::chrono::steady_clock::now();
     
     try {
+        // Get client address for logging
+        struct sockaddr_in addr;
+        socklen_t addr_len = sizeof(addr);
+        std::string client_address = "unknown";
+        if (getpeername(connection->socket(), (struct sockaddr*)&addr, &addr_len) == 0) {
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &addr.sin_addr, ip_str, INET_ADDRSTRLEN);
+            client_address = std::string(ip_str) + ":" + std::to_string(ntohs(addr.sin_port));
+        }
+        
+        // Log successful TLS connection establishment
+        nosql_db::security::AuditManager::log_security(
+            "TLS connection established from " + client_address + 
+            ", Protocol: " + connection->get_protocol_version() +
+            ", Cipher: " + connection->get_cipher_name(),
+            nosql_db::security::AuditSeverity::INFO);
+        
         // Log connection details
         std::cout << "TLS connection established: "
                   << "Protocol=" << connection->get_protocol_version()
@@ -544,6 +590,11 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
         
         if (!connection->get_peer_certificate_subject().empty()) {
             std::cout << "Client certificate: " << connection->get_peer_certificate_subject() << std::endl;
+            
+            // Log client certificate authentication
+            nosql_db::security::AuditManager::log_auth(
+                connection->get_peer_certificate_subject(), client_address, 
+                connection->is_client_cert_verified());
         }
         
         // Process binary protocol messages
@@ -555,6 +606,10 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
         
     } catch (const std::exception& e) {
         std::cerr << "Exception handling TLS connection: " << e.what() << std::endl;
+        
+        // Log the error
+        AUDIT_ERROR("TLS connection exception: " + std::string(e.what()), "TLS server");
+        
         metrics_->record_protocol_error();
     }
     
@@ -576,12 +631,17 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     
     // Validate header
     if (header.magic != PROTOCOL_MAGIC) {
+        // Log protocol violation
+        AUDIT_SECURITY("Invalid protocol magic received", nosql_db::security::AuditSeverity::WARNING);
         metrics_->record_protocol_error();
         return false;
     }
     
     // Check data length limits
     if (header.data_length > MAX_MESSAGE_SIZE) {
+        // Log potential DoS attempt
+        AUDIT_SECURITY("Message size limit exceeded: " + std::to_string(header.data_length) + " bytes", 
+                      nosql_db::security::AuditSeverity::WARNING);
         metrics_->record_protocol_error();
         return false;
     }
@@ -610,6 +670,8 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     // Deserialize the complete message
     BinaryMessage request;
     if (!request.deserialize(message_buffer)) {
+        // Log deserialization error
+        AUDIT_ERROR("Message deserialization failed", "TLS server protocol processing");
         metrics_->record_protocol_error();
         return false;
     }
@@ -617,24 +679,84 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     // Process request - for now just echo back a success response
     BinaryMessage response;
     
+    // Get client address for audit logging
+    struct sockaddr_in addr;
+    socklen_t addr_len = sizeof(addr);
+    std::string client_address = "unknown";
+    if (getpeername(connection.socket(), (struct sockaddr*)&addr, &addr_len) == 0) {
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &addr.sin_addr, ip_str, INET_ADDRSTRLEN);
+        client_address = std::string(ip_str);
+    }
+    
     // Create appropriate response based on request type
     switch (request.type()) {
-        case MessageType::PUT_REQUEST:
+        case MessageType::PUT_REQUEST: {
+            std::string key_info = "<unknown>";
+            size_t value_size = 0;
+            
+            auto put_data = MessageParser::parse_put_request(request);
+            if (put_data.has_value()) {
+                key_info = put_data->key;
+                value_size = put_data->value.size();
+            }
+            
+            // Log data write operation
+            AUDIT_ACCESS(client_address, "PUT", key_info, true);
+            
             response = MessageBuilder::create_put_response(request.message_id(), StatusCode::SUCCESS);
             break;
-        case MessageType::GET_REQUEST:
+        }
+        case MessageType::GET_REQUEST: {
+            std::string key_info = "<unknown>";
+            
+            auto get_data = MessageParser::parse_get_request(request);
+            if (get_data.has_value()) {
+                key_info = get_data->key;
+            }
+            
+            // Log data read operation
+            AUDIT_ACCESS(client_address, "GET", key_info, true);
+            
             response = MessageBuilder::create_get_response(request.message_id(), StatusCode::KEY_NOT_FOUND);
             break;
-        case MessageType::DELETE_REQUEST:
+        }
+        case MessageType::DELETE_REQUEST: {
+            std::string key_info = "<unknown>";
+            
+            auto delete_data = MessageParser::parse_delete_request(request);
+            if (delete_data.has_value()) {
+                key_info = delete_data->key;
+            }
+            
+            // Log data delete operation
+            AUDIT_ACCESS(client_address, "DELETE", key_info, true);
+            
             response = MessageBuilder::create_delete_response(request.message_id(), StatusCode::SUCCESS);
             break;
-        case MessageType::QUERY_REQUEST:
+        }
+        case MessageType::QUERY_REQUEST: {
+            std::string query_info = "<unknown>";
+            
+            auto query_data = MessageParser::parse_query_request(request);
+            if (query_data.has_value()) {
+                query_info = query_data->query;
+            }
+            
+            // Log query operation
+            AUDIT_ACCESS(client_address, "QUERY", query_info, true);
+            
             response = MessageBuilder::create_query_response(request.message_id(), StatusCode::SUCCESS);
             break;
+        }
         case MessageType::PING:
+            // No audit logging for ping - it's just a health check
             response = MessageBuilder::create_pong(request.message_id());
             break;
         default:
+            // Log unsupported operation attempt
+            AUDIT_SECURITY("Unsupported message type: " + std::to_string(static_cast<int>(request.type())), 
+                          nosql_db::security::AuditSeverity::WARNING);
             response = MessageBuilder::create_error(request.message_id(), StatusCode::UNSUPPORTED_VERSION);
             break;
     }
