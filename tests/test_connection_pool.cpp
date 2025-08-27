@@ -77,10 +77,12 @@ TEST_CASE("ConnectionPool - Basic Functionality", "[network][connection_pool]") 
         std::string session_id = pool.create_session(1, "10.0.0.1:12345");
         REQUIRE_FALSE(session_id.empty());
         REQUIRE(pool.stats().total_sessions.load() == 1);
+        REQUIRE(pool.stats().active_sessions.load() == 1);
         
         bool removed = pool.remove_session(session_id);
         REQUIRE(removed);
-        REQUIRE(pool.stats().total_sessions.load() == 0);
+        REQUIRE(pool.stats().total_sessions.load() == 1); // total_sessions is cumulative
+        REQUIRE(pool.stats().active_sessions.load() == 0); // active_sessions should decrease
         
         // Second removal should fail
         REQUIRE_FALSE(pool.remove_session(session_id));
