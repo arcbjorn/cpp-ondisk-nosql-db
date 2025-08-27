@@ -8,6 +8,10 @@ add_library(nosql_db STATIC
     query/query_engine.cpp
     network/binary_protocol.cpp
     network/binary_server.cpp
+    network/connection_pool.cpp
+    network/binary_client.cpp
+    network/streaming.cpp
+    network/metrics.cpp
 )
 
 target_link_libraries(nosql_db
@@ -38,5 +42,13 @@ add_executable(nosql_db_binary_server
 )
 
 target_link_libraries(nosql_db_binary_server
+    nosql_db
+)
+
+add_executable(nosql_db_client_demo
+    client_demo.cpp
+)
+
+target_link_libraries(nosql_db_client_demo
     nosql_db
 )
