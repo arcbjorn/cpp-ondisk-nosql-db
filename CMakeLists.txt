@@ -45,6 +45,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# Find OpenSSL
+find_package(OpenSSL REQUIRED)
+
 include_directories(include)
 
 add_subdirectory(src)

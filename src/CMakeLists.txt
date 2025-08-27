@@ -12,6 +12,10 @@ add_library(nosql_db STATIC
     network/binary_client.cpp
     network/streaming.cpp
     network/metrics.cpp
+    network/tls_server.cpp
+    network/tls_client.cpp
+    network/tls_utils.cpp
+    security/auth.cpp
 )
 
 target_link_libraries(nosql_db
@@ -19,6 +23,8 @@ target_link_libraries(nosql_db
     spdlog::spdlog
     httplib::httplib
     nlohmann_json::nlohmann_json
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 add_executable(nosql_db_main
@@ -50,5 +56,21 @@ add_executable(nosql_db_client_demo
 )
 
 target_link_libraries(nosql_db_client_demo
+    nosql_db
+)
+
+add_executable(nosql_db_tls_server
+    tls_server_main.cpp
+)
+
+target_link_libraries(nosql_db_tls_server
+    nosql_db
+)
+
+add_executable(nosql_db_tls_client
+    tls_client_demo.cpp
+)
+
+target_link_libraries(nosql_db_tls_client
     nosql_db
 )
