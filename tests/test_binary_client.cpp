@@ -173,14 +173,13 @@ TEST_CASE("BinaryClient - Query Operations", "[network][client]") {
     BinaryClient configured_client(config);
     REQUIRE(configured_client.connect());
     
-    SECTION("Setup test data") {
-        REQUIRE(configured_client.put("user:alice", "Alice Smith"));
-        REQUIRE(configured_client.put("user:bob", "Bob Jones"));
-        REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
-        REQUIRE(configured_client.put("post:1", "Hello World"));
-        REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
-        REQUIRE(configured_client.put("config:theme", "dark"));
-    }
+    // Setup test data (runs before all sections)
+    REQUIRE(configured_client.put("user:alice", "Alice Smith"));
+    REQUIRE(configured_client.put("user:bob", "Bob Jones"));
+    REQUIRE(configured_client.put("user:charlie", "Charlie Brown"));
+    REQUIRE(configured_client.put("post:1", "Hello World"));
+    REQUIRE(configured_client.put("post:2", "Binary Protocol Test"));
+    REQUIRE(configured_client.put("config:theme", "dark"));
     
     SECTION("SCAN query") {
         auto results = configured_client.query("SCAN");
