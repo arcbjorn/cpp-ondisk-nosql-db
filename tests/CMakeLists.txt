@@ -10,6 +10,7 @@ add_executable(tests
     test_connection_pool.cpp
     test_binary_client.cpp
     test_streaming.cpp
+    security_tests.cpp
     test_main.cpp
 )
 
