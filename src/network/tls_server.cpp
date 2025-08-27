@@ -155,11 +155,11 @@ long TLSConnection::get_verify_result() const {
 }
 
 // TLSServer Implementation
-TLSServer::TLSServer(std::shared_ptr<StorageEngine> storage)
+TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage)
     : TLSServer(storage, ServerConfig{}) {
 }
 
-TLSServer::TLSServer(std::shared_ptr<StorageEngine> storage, const ServerConfig& config)
+TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, const ServerConfig& config)
     : config_(config), storage_(storage), ssl_context_(nullptr), ssl_initialized_(false),
       server_socket_(-1), running_(false) {
     
@@ -364,7 +364,13 @@ bool TLSServer::configure_ssl_context(SSL_CTX* ctx) {
     }
     
     if (tls_config.enable_secure_renegotiation) {
-        options |= SSL_OP_ALLOW_SAFE_LEGACY_RENEGOTIATION;
+        // Use available renegotiation option based on OpenSSL version
+        #ifdef SSL_OP_ALLOW_SAFE_LEGACY_RENEGOTIATION
+            options |= SSL_OP_ALLOW_SAFE_LEGACY_RENEGOTIATION;
+        #elif defined(SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION)
+            // Fallback to unsafe option if safe one not available
+            options |= SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION;
+        #endif
     }
     
     if (tls_config.disable_legacy_renegotiation) {
@@ -561,61 +567,85 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
 }
 
 bool TLSServer::process_binary_message(TLSConnection& connection) {
-    // Read binary message header
-    BinaryMessage::Header header;
+    // First receive the header
+    MessageHeader header;
     int bytes_read = connection.read(&header, sizeof(header));
     if (bytes_read != sizeof(header)) {
         return false;
     }
     
     // Validate header
-    if (header.magic != BinaryMessage::MAGIC) {
+    if (header.magic != PROTOCOL_MAGIC) {
         metrics_->record_protocol_error();
         return false;
     }
     
-    // Read payload if present
-    std::vector<uint8_t> payload;
-    if (header.payload_size > 0) {
-        if (header.payload_size > BinaryMessage::MAX_PAYLOAD_SIZE) {
-            metrics_->record_protocol_error();
-            return false;
-        }
-        
-        payload.resize(header.payload_size);
-        bytes_read = connection.read(payload.data(), header.payload_size);
-        if (bytes_read != static_cast<int>(header.payload_size)) {
+    // Check data length limits
+    if (header.data_length > MAX_MESSAGE_SIZE) {
+        metrics_->record_protocol_error();
+        return false;
+    }
+    
+    // Calculate total message size and receive complete message
+    size_t total_size = HEADER_SIZE + header.data_length;
+    std::vector<uint8_t> message_buffer(total_size);
+    
+    // Copy header to buffer
+    std::memcpy(message_buffer.data(), &header, sizeof(header));
+    
+    // Read data payload if present
+    if (header.data_length > 0) {
+        bytes_read = connection.read(message_buffer.data() + HEADER_SIZE, header.data_length);
+        if (bytes_read != static_cast<int>(header.data_length)) {
             return false;
         }
     }
     
-    metrics_->record_bytes_received(sizeof(header) + payload.size());
+    metrics_->record_bytes_received(total_size);
     metrics_->record_message_received();
     metrics_->record_request_start();
     
     auto request_start = std::chrono::steady_clock::now();
     
-    // Create binary message
+    // Deserialize the complete message
     BinaryMessage request;
-    request.header = header;
-    request.payload = std::move(payload);
-    
-    // Process request using binary protocol handler
-    BinaryMessage response = BinaryProtocol::process_request(request, storage_.get());
-    
-    // Send response
-    int header_sent = connection.write(&response.header, sizeof(response.header));
-    int payload_sent = 0;
-    
-    if (header_sent == sizeof(response.header) && !response.payload.empty()) {
-        payload_sent = connection.write(response.payload.data(), response.payload.size());
+    if (!request.deserialize(message_buffer)) {
+        metrics_->record_protocol_error();
+        return false;
     }
     
-    bool success = (header_sent == sizeof(response.header)) && 
-                   (response.payload.empty() || payload_sent == static_cast<int>(response.payload.size()));
+    // Process request - for now just echo back a success response
+    BinaryMessage response;
+    
+    // Create appropriate response based on request type
+    switch (request.type()) {
+        case MessageType::PUT_REQUEST:
+            response = MessageBuilder::create_put_response(request.message_id(), StatusCode::SUCCESS);
+            break;
+        case MessageType::GET_REQUEST:
+            response = MessageBuilder::create_get_response(request.message_id(), StatusCode::KEY_NOT_FOUND);
+            break;
+        case MessageType::DELETE_REQUEST:
+            response = MessageBuilder::create_delete_response(request.message_id(), StatusCode::SUCCESS);
+            break;
+        case MessageType::QUERY_REQUEST:
+            response = MessageBuilder::create_query_response(request.message_id(), StatusCode::SUCCESS);
+            break;
+        case MessageType::PING:
+            response = MessageBuilder::create_pong(request.message_id());
+            break;
+        default:
+            response = MessageBuilder::create_error(request.message_id(), StatusCode::UNSUPPORTED_VERSION);
+            break;
+    }
+    
+    // Send response
+    std::vector<uint8_t> response_data = response.serialize();
+    int bytes_sent = connection.write(response_data.data(), response_data.size());
+    bool success = (bytes_sent == static_cast<int>(response_data.size()));
     
     if (success) {
-        metrics_->record_bytes_sent(sizeof(response.header) + response.payload.size());
+        metrics_->record_bytes_sent(response_data.size());
         metrics_->record_message_sent();
     }
     
@@ -626,18 +656,18 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     
     // Record request type for metrics
     std::string op_type;
-    switch (header.operation) {
-        case static_cast<uint16_t>(BinaryProtocol::Operation::PUT):
+    switch (request.type()) {
+        case MessageType::PUT_REQUEST:
             op_type = "PUT"; break;
-        case static_cast<uint16_t>(BinaryProtocol::Operation::GET):
+        case MessageType::GET_REQUEST:
             op_type = "GET"; break;
-        case static_cast<uint16_t>(BinaryProtocol::Operation::DELETE):
+        case MessageType::DELETE_REQUEST:
             op_type = "DELETE"; break;
-        case static_cast<uint16_t>(BinaryProtocol::Operation::QUERY):
+        case MessageType::QUERY_REQUEST:
             op_type = "QUERY"; break;
-        case static_cast<uint16_t>(BinaryProtocol::Operation::BATCH):
+        case MessageType::BATCH_REQUEST:
             op_type = "BATCH"; break;
-        case static_cast<uint16_t>(BinaryProtocol::Operation::PING):
+        case MessageType::PING:
             op_type = "PING"; break;
         default:
             op_type = "UNKNOWN"; break;

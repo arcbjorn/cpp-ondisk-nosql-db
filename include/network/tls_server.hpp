@@ -14,11 +14,15 @@
 #include <openssl/x509.h>
 #include "binary_protocol.hpp"
 
+// Forward declarations
+namespace nosql_db {
+    namespace storage {
+        class StorageEngine;
+    }
+}
+
 namespace nosql_db {
 namespace network {
-
-// Forward declarations
-class StorageEngine;
 class NetworkMetrics;
 class ConnectionPool;
 
@@ -145,8 +149,8 @@ public:
         std::string log_file = "tls_server.log";
     };
     
-    explicit TLSServer(std::shared_ptr<StorageEngine> storage);
-    explicit TLSServer(std::shared_ptr<StorageEngine> storage, 
+    explicit TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage);
+    explicit TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, 
                        const ServerConfig& config);
     ~TLSServer();
     
@@ -213,7 +217,7 @@ private:
     
     // Server state
     ServerConfig config_;
-    std::shared_ptr<StorageEngine> storage_;
+    std::shared_ptr<nosql_db::storage::StorageEngine> storage_;
     std::shared_ptr<NetworkMetrics> metrics_;
     std::shared_ptr<ConnectionPool> connection_pool_;
     

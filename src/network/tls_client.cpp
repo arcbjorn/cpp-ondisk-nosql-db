@@ -9,6 +9,7 @@
 #include <openssl/x509v3.h>
 #include <cstring>
 #include <thread>
+#include <sstream>
 
 namespace nosql_db {
 namespace network {
@@ -389,7 +390,8 @@ bool TLSClient::put(const std::string& key, const std::string& value) {
         return false;
     }
     
-    BinaryMessage request = BinaryProtocol::create_put_request(key, value);
+    static uint64_t message_id_counter = 1;
+    BinaryMessage request = MessageBuilder::create_put_request(message_id_counter++, key, value);
     if (!send_message(request)) {
         return false;
     }
@@ -399,7 +401,8 @@ bool TLSClient::put(const std::string& key, const std::string& value) {
         return false;
     }
     
-    return response.header.status_code == static_cast<uint16_t>(StatusCode::SUCCESS);
+    return response.type() == MessageType::PUT_RESPONSE && 
+           response.data_as_string() == "0"; // StatusCode::SUCCESS
 }
 
 std::optional<std::string> TLSClient::get(const std::string& key) {
@@ -407,7 +410,8 @@ std::optional<std::string> TLSClient::get(const std::string& key) {
         return std::nullopt;
     }
     
-    BinaryMessage request = BinaryProtocol::create_get_request(key);
+    static uint64_t message_id_counter = 1;
+    BinaryMessage request = MessageBuilder::create_get_request(message_id_counter++, key);
     if (!send_message(request)) {
         return std::nullopt;
     }
@@ -417,8 +421,15 @@ std::optional<std::string> TLSClient::get(const std::string& key) {
         return std::nullopt;
     }
     
-    if (response.header.status_code == static_cast<uint16_t>(StatusCode::SUCCESS)) {
-        return BinaryProtocol::extract_value(response);
+    if (response.type() == MessageType::GET_RESPONSE) {
+        std::string response_data = response.data_as_string();
+        // First 4 bytes are status code, rest is value
+        if (response_data.length() >= 4) {
+            uint32_t status = *reinterpret_cast<const uint32_t*>(response_data.data());
+            if (status == static_cast<uint32_t>(StatusCode::SUCCESS) && response_data.length() > 4) {
+                return response_data.substr(4);
+            }
+        }
     }
     
     return std::nullopt;
@@ -429,7 +440,8 @@ bool TLSClient::delete_key(const std::string& key) {
         return false;
     }
     
-    BinaryMessage request = BinaryProtocol::create_delete_request(key);
+    static uint64_t message_id_counter = 1;
+    BinaryMessage request = MessageBuilder::create_delete_request(message_id_counter++, key);
     if (!send_message(request)) {
         return false;
     }
@@ -439,7 +451,8 @@ bool TLSClient::delete_key(const std::string& key) {
         return false;
     }
     
-    return response.header.status_code == static_cast<uint16_t>(StatusCode::SUCCESS);
+    return response.type() == MessageType::DELETE_RESPONSE && 
+           response.data_as_string() == "0"; // StatusCode::SUCCESS
 }
 
 bool TLSClient::ping() {
@@ -447,7 +460,8 @@ bool TLSClient::ping() {
         return false;
     }
     
-    BinaryMessage request = BinaryProtocol::create_ping_request();
+    static uint64_t message_id_counter = 1;
+    BinaryMessage request = MessageBuilder::create_ping(message_id_counter++);
     if (!send_message(request)) {
         return false;
     }
@@ -457,7 +471,7 @@ bool TLSClient::ping() {
         return false;
     }
     
-    return response.header.status_code == static_cast<uint16_t>(StatusCode::SUCCESS);
+    return response.type() == MessageType::PONG;
 }
 
 std::vector<std::pair<std::string, std::string>> TLSClient::query(const std::string& query_str) {
@@ -465,7 +479,8 @@ std::vector<std::pair<std::string, std::string>> TLSClient::query(const std::str
         return {};
     }
     
-    BinaryMessage request = BinaryProtocol::create_query_request(query_str);
+    static uint64_t message_id_counter = 1;
+    BinaryMessage request = MessageBuilder::create_query_request(message_id_counter++, query_str);
     if (!send_message(request)) {
         return {};
     }
@@ -475,8 +490,21 @@ std::vector<std::pair<std::string, std::string>> TLSClient::query(const std::str
         return {};
     }
     
-    if (response.header.status_code == static_cast<uint16_t>(StatusCode::SUCCESS)) {
-        return BinaryProtocol::extract_query_results(response);
+    if (response.type() == MessageType::QUERY_RESPONSE) {
+        // Parse query results from response data
+        std::vector<std::pair<std::string, std::string>> results;
+        std::string response_data = response.data_as_string();
+        
+        // Simple parsing - would need proper implementation based on protocol format
+        std::istringstream stream(response_data);
+        std::string line;
+        while (std::getline(stream, line)) {
+            size_t separator = line.find('=');
+            if (separator != std::string::npos) {
+                results.emplace_back(line.substr(0, separator), line.substr(separator + 1));
+            }
+        }
+        return results;
     }
     
     return {};
@@ -484,38 +512,56 @@ std::vector<std::pair<std::string, std::string>> TLSClient::query(const std::str
 
 std::vector<StatusCode> TLSClient::batch_execute(const std::vector<BatchItem>& operations) {
     if (!is_connected()) {
-        return std::vector<StatusCode>(operations.size(), StatusCode::NETWORK_ERROR);
+        return std::vector<StatusCode>(operations.size(), StatusCode::SERVER_ERROR);
     }
     
-    // Convert to binary protocol batch items
-    std::vector<BinaryProtocol::BatchItem> binary_items;
+    // Create individual operations as separate BinaryMessage objects
+    std::vector<BinaryMessage> binary_operations;
+    static uint64_t message_id_counter = 1;
+    
     for (const auto& op : operations) {
-        BinaryProtocol::BatchItem::Operation binary_op;
+        BinaryMessage operation_msg;
         switch (op.op) {
             case BatchOperation::PUT:
-                binary_op = BinaryProtocol::BatchItem::Operation::PUT;
+                operation_msg = MessageBuilder::create_put_request(message_id_counter++, op.key, op.value);
                 break;
             case BatchOperation::GET:
-                binary_op = BinaryProtocol::BatchItem::Operation::GET;
+                operation_msg = MessageBuilder::create_get_request(message_id_counter++, op.key);
                 break;
             case BatchOperation::DELETE:
-                binary_op = BinaryProtocol::BatchItem::Operation::DELETE;
+                operation_msg = MessageBuilder::create_delete_request(message_id_counter++, op.key);
                 break;
         }
-        binary_items.emplace_back(binary_op, op.key, op.value);
+        binary_operations.push_back(operation_msg);
     }
     
-    BinaryMessage request = BinaryProtocol::create_batch_request(binary_items);
+    BinaryMessage request = MessageBuilder::create_batch_request(message_id_counter++, binary_operations);
     if (!send_message(request)) {
-        return std::vector<StatusCode>(operations.size(), StatusCode::NETWORK_ERROR);
+        return std::vector<StatusCode>(operations.size(), StatusCode::SERVER_ERROR);
     }
     
     BinaryMessage response;
     if (!receive_message(response)) {
-        return std::vector<StatusCode>(operations.size(), StatusCode::NETWORK_ERROR);
+        return std::vector<StatusCode>(operations.size(), StatusCode::SERVER_ERROR);
     }
     
-    return BinaryProtocol::extract_batch_results(response);
+    // Parse batch results from response data
+    std::vector<StatusCode> results;
+    if (response.type() == MessageType::BATCH_RESPONSE) {
+        std::string response_data = response.data_as_string();
+        // Simple parsing - each result is 4 bytes (uint32_t status code)
+        for (size_t i = 0; i < operations.size() && i * 4 < response_data.size(); ++i) {
+            uint32_t status = *reinterpret_cast<const uint32_t*>(response_data.data() + i * 4);
+            results.push_back(static_cast<StatusCode>(status));
+        }
+    }
+    
+    // Fill remaining with error status if needed
+    while (results.size() < operations.size()) {
+        results.push_back(StatusCode::SERVER_ERROR);
+    }
+    
+    return results;
 }
 
 bool TLSClient::send_message(const BinaryMessage& message) {
@@ -523,21 +569,12 @@ bool TLSClient::send_message(const BinaryMessage& message) {
         return false;
     }
     
-    // Send header
-    int header_sent = connection_->write(&message.header, sizeof(message.header));
-    if (header_sent != sizeof(message.header)) {
-        return false;
-    }
+    // Serialize the message
+    std::vector<uint8_t> serialized = message.serialize();
     
-    // Send payload if present
-    if (!message.payload.empty()) {
-        int payload_sent = connection_->write(message.payload.data(), message.payload.size());
-        if (payload_sent != static_cast<int>(message.payload.size())) {
-            return false;
-        }
-    }
-    
-    return true;
+    // Send serialized message
+    int bytes_sent = connection_->write(serialized.data(), serialized.size());
+    return bytes_sent == static_cast<int>(serialized.size());
 }
 
 bool TLSClient::receive_message(BinaryMessage& message) {
@@ -545,28 +582,35 @@ bool TLSClient::receive_message(BinaryMessage& message) {
         return false;
     }
     
-    // Receive header
-    int header_received = connection_->read(&message.header, sizeof(message.header));
-    if (header_received != sizeof(message.header)) {
+    // First receive the header
+    MessageHeader header;
+    int header_received = connection_->read(&header, sizeof(header));
+    if (header_received != sizeof(header)) {
         return false;
     }
     
     // Validate header
-    if (message.header.magic != BinaryMessage::MAGIC) {
+    if (header.magic != PROTOCOL_MAGIC) {
         return false;
     }
     
-    // Receive payload if present
-    message.payload.clear();
-    if (message.header.payload_size > 0) {
-        message.payload.resize(message.header.payload_size);
-        int payload_received = connection_->read(message.payload.data(), message.header.payload_size);
-        if (payload_received != static_cast<int>(message.header.payload_size)) {
+    // Calculate total message size
+    size_t total_size = HEADER_SIZE + header.data_length;
+    std::vector<uint8_t> buffer(total_size);
+    
+    // Copy header to buffer
+    std::memcpy(buffer.data(), &header, sizeof(header));
+    
+    // Receive data payload if present
+    if (header.data_length > 0) {
+        int data_received = connection_->read(buffer.data() + HEADER_SIZE, header.data_length);
+        if (data_received != static_cast<int>(header.data_length)) {
             return false;
         }
     }
     
-    return true;
+    // Deserialize the complete message
+    return message.deserialize(buffer);
 }
 
 // TLS-specific getters

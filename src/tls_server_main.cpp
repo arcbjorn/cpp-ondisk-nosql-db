@@ -1,5 +1,6 @@
-#include "network/tls_server.hpp"
 #include "storage/storage_engine.hpp"
+#include "network/tls_server.hpp"
+#include "network/metrics.hpp"
 #include <iostream>
 #include <filesystem>
 #include <signal.h>
@@ -189,7 +190,7 @@ int main(int argc, char* argv[]) {
     
     // Initialize storage engine
     std::cout << "Initializing storage engine..." << std::endl;
-    auto storage = std::make_shared<StorageEngine>(data_dir, StorageEngine::EngineType::SimpleLog);
+    auto storage = std::make_shared<nosql_db::storage::StorageEngine>(data_dir, nosql_db::storage::StorageEngine::EngineType::SimpleLog);
     
     // Create and start TLS server
     std::cout << "Starting TLS server..." << std::endl;
