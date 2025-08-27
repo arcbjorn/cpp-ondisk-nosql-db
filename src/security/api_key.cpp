@@ -14,7 +14,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 namespace {
     // Utility function to generate secure random bytes
@@ -1110,4 +1110,4 @@ bool ApiKeyManager::add_resource_pattern(const std::string& key_id, const std::s
     return true;
 }
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

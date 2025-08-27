@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 // LatencyHistogram implementation
 constexpr uint64_t LatencyHistogram::BUCKETS[BUCKET_COUNT];
@@ -616,4 +616,4 @@ std::string MetricsMonitor::generate_report() {
     return report.str();
 }
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

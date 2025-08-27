@@ -3,7 +3,7 @@
 #include <chrono>
 #include <format>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 LogStorage::LogStorage(const std::filesystem::path& log_file) 
     : log_path_(log_file) {
@@ -228,4 +228,4 @@ void LogStorage::rebuild_index() {
     spdlog::info("Rebuilt B+Tree index with {} entries", index_.size());
 }
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

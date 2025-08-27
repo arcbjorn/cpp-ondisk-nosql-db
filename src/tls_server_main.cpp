@@ -8,8 +8,8 @@
 #include <csignal>
 #include <iomanip>
 
-using namespace nosql_db::network;
-using namespace nosql_db::storage;
+using namespace ishikura::network;
+using namespace ishikura::storage;
 
 // Global server instance for signal handling
 std::unique_ptr<TLSServer> g_server;
@@ -44,7 +44,7 @@ void print_usage(const char* program_name) {
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "NoSQL DB TLS Server" << std::endl;
+    std::cout << "IshikuraDB（石蔵） TLS Server" << std::endl;
     std::cout << "===================" << std::endl;
     
     // Setup signal handlers
@@ -190,7 +190,7 @@ int main(int argc, char* argv[]) {
     
     // Initialize storage engine
     std::cout << "Initializing storage engine..." << std::endl;
-    auto storage = std::make_shared<nosql_db::storage::StorageEngine>(data_dir, nosql_db::storage::StorageEngine::EngineType::SimpleLog);
+    auto storage = std::make_shared<ishikura::storage::StorageEngine>(data_dir, ishikura::storage::StorageEngine::EngineType::SimpleLog);
     
     // Create and start TLS server
     std::cout << "Starting TLS server..." << std::endl;

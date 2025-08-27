@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include <cstring>
 
-namespace nosql_db {
+namespace ishikura {
 namespace network {
 namespace tls_utils {
 
@@ -444,4 +444,4 @@ std::vector<std::string> get_supported_ciphers(SSL_CTX* ctx) {
 
 } // namespace tls_utils
 } // namespace network
-} // namespace nosql_db
+} // namespace ishikura

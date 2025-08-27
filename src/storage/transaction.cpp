@@ -3,7 +3,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 // Transaction Implementation
 
@@ -180,4 +180,4 @@ std::unique_lock<std::shared_mutex> TransactionManager::acquire_write_lock() con
     return std::unique_lock<std::shared_mutex>(storage_lock_);
 }
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

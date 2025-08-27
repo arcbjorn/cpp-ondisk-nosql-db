@@ -5,7 +5,7 @@
 #include <chrono>
 #include <map>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 LSMTree::LSMTree(const std::filesystem::path& base_directory)
     : base_dir_(base_directory) {
@@ -432,4 +432,4 @@ uint64_t LSMTree::get_total_size() const {
     return total;
 }
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

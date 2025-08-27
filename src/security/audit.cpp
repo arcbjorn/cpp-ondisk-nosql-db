@@ -13,7 +13,7 @@
 #include <openssl/rand.h>
 #include <regex>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 namespace {
     // Utility function to format timestamps
@@ -839,4 +839,4 @@ void AuditManager::log_error(const std::string& error, const std::string& contex
     }
 }
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

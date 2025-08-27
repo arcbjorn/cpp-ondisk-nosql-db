@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--debug") {
             spdlog::set_level(spdlog::level::debug);
         } else if (arg == "--help") {
-            std::cout << "NoSQL Database Binary Server\n\n"
+            std::cout << "IshikuraDB（石蔵） Binary Server\n\n"
                       << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
                       << "  --host <host>             Host to bind to (default: 0.0.0.0)\n"
@@ -67,8 +67,8 @@ int main(int argc, char* argv[]) {
     try {
         // Initialize storage engine with LSM-Tree
         std::filesystem::path storage_dir = std::filesystem::path(data_dir);
-        auto storage_engine = std::make_shared<nosql_db::storage::StorageEngine>(
-            storage_dir, nosql_db::storage::StorageEngine::EngineType::LSMTree);
+        auto storage_engine = std::make_shared<ishikura::storage::StorageEngine>(
+            storage_dir, ishikura::storage::StorageEngine::EngineType::LSMTree);
         
         // Start compaction for optimal performance
         storage_engine->start_compaction();
@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
         std::signal(SIGTERM, signal_handler);
         
         // Configure binary server
-        nosql_db::network::BinaryServer::ServerConfig config;
+        ishikura::network::BinaryServer::ServerConfig config;
         config.host = host;
         config.port = port;
         config.worker_threads = worker_threads;
@@ -96,14 +96,14 @@ int main(int argc, char* argv[]) {
         config.pool_config.requests_per_second_limit = 1000;
         
         // Create and start binary server
-        nosql_db::network::BinaryServer server(storage_engine, config);
+        ishikura::network::BinaryServer server(storage_engine, config);
         
         if (!server.start()) {
             spdlog::error("Failed to start binary server");
             return 1;
         }
         
-        spdlog::info("NoSQL Database Binary Server started");
+        spdlog::info("IshikuraDB（石蔵） Binary Server started");
         spdlog::info("Listening on {}:{}", host, port);
         spdlog::info("Data directory: {}", data_dir);
         spdlog::info("Max connections: {}, Worker threads: {}", max_connections, worker_threads);

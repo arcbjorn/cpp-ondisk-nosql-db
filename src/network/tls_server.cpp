@@ -19,7 +19,7 @@
 #include <cstring>
 #include <cerrno>
 
-namespace nosql_db {
+namespace ishikura {
 namespace network {
 
 // TLSConnection Implementation
@@ -156,11 +156,11 @@ long TLSConnection::get_verify_result() const {
 }
 
 // TLSServer Implementation
-TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage)
+TLSServer::TLSServer(std::shared_ptr<ishikura::storage::StorageEngine> storage)
     : TLSServer(storage, ServerConfig{}) {
 }
 
-TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, const ServerConfig& config)
+TLSServer::TLSServer(std::shared_ptr<ishikura::storage::StorageEngine> storage, const ServerConfig& config)
     : config_(config), storage_(storage), ssl_context_(nullptr), ssl_initialized_(false),
       server_socket_(-1), running_(false) {
     
@@ -176,14 +176,14 @@ TLSServer::TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, 
     connection_pool_ = std::make_shared<ConnectionPool>(pool_config);
     
     // Initialize audit system if not already initialized
-    if (!nosql_db::security::AuditManager::is_initialized()) {
-        nosql_db::security::AuditConfig audit_config;
+    if (!ishikura::security::AuditManager::is_initialized()) {
+        ishikura::security::AuditConfig audit_config;
         audit_config.log_file = "tls_server_audit.log";
         audit_config.enable_file_logging = true;
         audit_config.enable_async_logging = true;
-        audit_config.min_severity = nosql_db::security::AuditSeverity::INFO;
+        audit_config.min_severity = ishikura::security::AuditSeverity::INFO;
         
-        nosql_db::security::AuditManager::initialize(audit_config);
+        ishikura::security::AuditManager::initialize(audit_config);
     }
 }
 
@@ -480,7 +480,7 @@ void TLSServer::worker_thread(int worker_id) {
             
             // Log security event for rate limiting
             AUDIT_SECURITY("Connection rejected due to rate limit from " + client_address, 
-                          nosql_db::security::AuditSeverity::WARNING);
+                          ishikura::security::AuditSeverity::WARNING);
             
             close(client_socket);
             metrics_->record_network_error();
@@ -492,7 +492,7 @@ void TLSServer::worker_thread(int worker_id) {
         if (!tls_connection) {
             // Log TLS handshake failure
             AUDIT_SECURITY("TLS handshake failed from " + client_address, 
-                          nosql_db::security::AuditSeverity::WARNING);
+                          ishikura::security::AuditSeverity::WARNING);
             
             close(client_socket);
             metrics_->record_network_error();
@@ -577,11 +577,11 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
         }
         
         // Log successful TLS connection establishment
-        nosql_db::security::AuditManager::log_security(
+        ishikura::security::AuditManager::log_security(
             "TLS connection established from " + client_address + 
             ", Protocol: " + connection->get_protocol_version() +
             ", Cipher: " + connection->get_cipher_name(),
-            nosql_db::security::AuditSeverity::INFO);
+            ishikura::security::AuditSeverity::INFO);
         
         // Log connection details
         std::cout << "TLS connection established: "
@@ -592,7 +592,7 @@ bool TLSServer::handle_connection(std::unique_ptr<TLSConnection> connection) {
             std::cout << "Client certificate: " << connection->get_peer_certificate_subject() << std::endl;
             
             // Log client certificate authentication
-            nosql_db::security::AuditManager::log_auth(
+            ishikura::security::AuditManager::log_auth(
                 connection->get_peer_certificate_subject(), client_address, 
                 connection->is_client_cert_verified());
         }
@@ -632,7 +632,7 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     // Validate header
     if (header.magic != PROTOCOL_MAGIC) {
         // Log protocol violation
-        AUDIT_SECURITY("Invalid protocol magic received", nosql_db::security::AuditSeverity::WARNING);
+        AUDIT_SECURITY("Invalid protocol magic received", ishikura::security::AuditSeverity::WARNING);
         metrics_->record_protocol_error();
         return false;
     }
@@ -641,7 +641,7 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
     if (header.data_length > MAX_MESSAGE_SIZE) {
         // Log potential DoS attempt
         AUDIT_SECURITY("Message size limit exceeded: " + std::to_string(header.data_length) + " bytes", 
-                      nosql_db::security::AuditSeverity::WARNING);
+                      ishikura::security::AuditSeverity::WARNING);
         metrics_->record_protocol_error();
         return false;
     }
@@ -756,7 +756,7 @@ bool TLSServer::process_binary_message(TLSConnection& connection) {
         default:
             // Log unsupported operation attempt
             AUDIT_SECURITY("Unsupported message type: " + std::to_string(static_cast<int>(request.type())), 
-                          nosql_db::security::AuditSeverity::WARNING);
+                          ishikura::security::AuditSeverity::WARNING);
             response = MessageBuilder::create_error(request.message_id(), StatusCode::UNSUPPORTED_VERSION);
             break;
     }
@@ -896,4 +896,4 @@ std::string TLSServer::get_ssl_error_string(int error_code) const {
 }
 
 } // namespace network
-} // namespace nosql_db
+} // namespace ishikura

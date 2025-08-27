@@ -4,7 +4,7 @@
 
 using json = nlohmann::json;
 
-namespace nosql_db::api {
+namespace ishikura::api {
 
 KvController::KvController(std::shared_ptr<storage::StorageEngine> storage)
     : storage_(std::move(storage)), 
@@ -267,4 +267,4 @@ bool KvController::is_valid_key(std::string_view key) {
     return true;
 }
 
-} // namespace nosql_db::api
+} // namespace ishikura::api

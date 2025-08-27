@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--debug") {
             spdlog::set_level(spdlog::level::debug);
         } else if (arg == "--help") {
-            std::cout << "NoSQL Database Binary Client Demo\n\n"
+            std::cout << "IshikuraDB（石蔵） Binary Client Demo\n\n"
                       << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
                       << "  --host <host>     Server host (default: localhost)\n"
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     
     try {
         // Configure client
-        nosql_db::network::BinaryClient::ClientConfig config;
+        ishikura::network::BinaryClient::ClientConfig config;
         config.host = host;
         config.port = port;
         config.connection_timeout = std::chrono::seconds(10);
@@ -50,14 +50,14 @@ int main(int argc, char* argv[]) {
         config.max_retries = 3;
         
         // Create and connect client
-        nosql_db::network::BinaryClient client(config);
+        ishikura::network::BinaryClient client(config);
         
         if (!client.connect()) {
             spdlog::error("Failed to connect to server at {}:{}", host, port);
             return 1;
         }
         
-        spdlog::info("Connected to NoSQL Database Binary Server at {}:{}", host, port);
+        spdlog::info("Connected to IshikuraDB（石蔵） Binary Server at {}:{}", host, port);
         
         // Test basic operations
         std::cout << "=== Binary Client Demo ===" << std::endl;
@@ -127,11 +127,11 @@ int main(int argc, char* argv[]) {
         
         // Test batch operations
         std::cout << "\n5. Testing BATCH operations..." << std::endl;
-        std::vector<nosql_db::network::BinaryClient::BatchOperation> batch_ops = {
-            {nosql_db::network::BinaryClient::BatchOperation::PUT, "batch:1", "first"},
-            {nosql_db::network::BinaryClient::BatchOperation::PUT, "batch:2", "second"},
-            {nosql_db::network::BinaryClient::BatchOperation::GET, "user:alice", ""},
-            {nosql_db::network::BinaryClient::BatchOperation::DELETE, "temp:delete", ""}
+        std::vector<ishikura::network::BinaryClient::BatchOperation> batch_ops = {
+            {ishikura::network::BinaryClient::BatchOperation::PUT, "batch:1", "first"},
+            {ishikura::network::BinaryClient::BatchOperation::PUT, "batch:2", "second"},
+            {ishikura::network::BinaryClient::BatchOperation::GET, "user:alice", ""},
+            {ishikura::network::BinaryClient::BatchOperation::DELETE, "temp:delete", ""}
         };
         
         auto batch_results = client.batch_execute(batch_ops);
@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
         
         for (size_t i = 0; i < batch_results.size(); ++i) {
             std::cout << "  Operation " << (i+1) << ": " 
-                      << (batch_results[i] == nosql_db::network::StatusCode::SUCCESS ? "✓" : "✗") 
+                      << (batch_results[i] == ishikura::network::StatusCode::SUCCESS ? "✓" : "✗") 
                       << std::endl;
         }
         

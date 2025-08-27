@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <sstream>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 // BinaryMessage implementation
 BinaryMessage::BinaryMessage(MessageType type, uint64_t id) : header_(), data_() {
@@ -451,4 +451,4 @@ std::vector<StatusCode> parse_batch_response(const BinaryMessage& msg) {
 
 } // namespace MessageParser
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

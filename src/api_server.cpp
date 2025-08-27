@@ -42,7 +42,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--debug") {
             spdlog::set_level(spdlog::level::debug);
         } else if (arg == "--help") {
-            std::cout << "NoSQL Database HTTP Server\n\n"
+            std::cout << "IshikuraDB（石蔵） HTTP Server\n\n"
                       << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
                       << "  --host <host>     Host to bind to (default: 0.0.0.0)\n"
@@ -63,8 +63,8 @@ int main(int argc, char* argv[]) {
     try {
         // Initialize storage engine with LSM-Tree
         std::filesystem::path storage_dir = std::filesystem::path(data_dir);
-        auto storage_engine = std::make_shared<nosql_db::storage::StorageEngine>(
-            storage_dir, nosql_db::storage::StorageEngine::EngineType::LSMTree);
+        auto storage_engine = std::make_shared<ishikura::storage::StorageEngine>(
+            storage_dir, ishikura::storage::StorageEngine::EngineType::LSMTree);
         
         // Start compaction for optimal performance
         storage_engine->start_compaction();
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         });
         
         // Register API controller
-        nosql_db::api::KvController controller(storage_engine);
+        ishikura::api::KvController controller(storage_engine);
         controller.register_routes(server);
         
         // Set server configuration
@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
         server.set_write_timeout(30, 0); // 30 seconds
         
         // Start server in a separate thread
-        spdlog::info("Starting NoSQL Database HTTP Server");
+        spdlog::info("Starting IshikuraDB（石蔵） HTTP Server");
         spdlog::info("Listening on http://{}:{}", host, port);
         spdlog::info("Data directory: {}", data_dir);
         spdlog::info("Press Ctrl+C to stop");

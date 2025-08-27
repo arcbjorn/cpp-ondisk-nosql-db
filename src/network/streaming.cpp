@@ -5,7 +5,7 @@
 #include <future>
 #include <shared_mutex>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 // StreamingSession implementation
 StreamingSession::StreamingSession(uint64_t stream_id)
@@ -533,4 +533,4 @@ void BatchProcessor::reset_stats() {
 
 } // namespace BatchOps
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

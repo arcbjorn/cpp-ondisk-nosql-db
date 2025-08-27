@@ -10,7 +10,7 @@
 #include <cstring>
 #include <thread>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 BinaryClient::BinaryClient() : BinaryClient(ClientConfig{}) {
 }
@@ -332,4 +332,4 @@ std::optional<BinaryMessage> BinaryClient::send_request(const BinaryMessage& req
     return std::nullopt;
 }
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

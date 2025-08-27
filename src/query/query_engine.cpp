@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cctype>
 
-namespace nosql_db::query {
+namespace ishikura::query {
 
 QueryEngine::QueryEngine(std::shared_ptr<storage::StorageEngine> storage)
     : storage_(std::move(storage)) {
@@ -488,4 +488,4 @@ std::pair<int, int> QueryEngine::parse_limit_offset(const std::string& limit_cla
     return {-1, 0}; // Placeholder
 }
 
-} // namespace nosql_db::query
+} // namespace ishikura::query

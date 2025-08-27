@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <shared_mutex>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 ConnectionPool::ConnectionPool(const PoolConfig& config)
     : config_(config), cleanup_running_(false) {
@@ -346,4 +346,4 @@ bool ManagedConnection::check_rate_limit() {
     return pool_->check_rate_limit(client_ip);
 }
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

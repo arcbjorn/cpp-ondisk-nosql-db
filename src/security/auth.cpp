@@ -11,7 +11,7 @@
 #include <openssl/sha.h>
 #include <regex>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 // Utility functions
 std::string generate_random_string(size_t length) {
@@ -501,4 +501,4 @@ std::optional<Role> string_to_role(const std::string& role_str) {
     return std::nullopt;
 }
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

@@ -4,9 +4,9 @@
 
 int main() {
     spdlog::set_level(spdlog::level::debug);
-    spdlog::info("NoSQL DB starting...");
+    spdlog::info("IshikuraDB（石蔵） starting...");
     
-    nosql_db::storage::LogStorage storage("data/test.log");
+    ishikura::storage::LogStorage storage("data/test.log");
     
     if (!storage.is_open()) {
         spdlog::error("Failed to initialize storage");
@@ -25,7 +25,7 @@ int main() {
     spdlog::info("Total records: {}", all_records.size());
     
     storage.sync();
-    spdlog::info("NoSQL DB shutting down...");
+    spdlog::info("IshikuraDB（石蔵） shutting down...");
     
     return 0;
 }

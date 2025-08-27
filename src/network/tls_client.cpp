@@ -12,7 +12,7 @@
 #include <thread>
 #include <sstream>
 
-namespace nosql_db {
+namespace ishikura {
 namespace network {
 
 // TLSClient Implementation
@@ -24,14 +24,14 @@ TLSClient::TLSClient(const ClientConfig& config)
     : config_(config), ssl_context_(nullptr), ssl_initialized_(false) {
     
     // Initialize audit system if not already initialized
-    if (!nosql_db::security::AuditManager::is_initialized()) {
-        nosql_db::security::AuditConfig audit_config;
+    if (!ishikura::security::AuditManager::is_initialized()) {
+        ishikura::security::AuditConfig audit_config;
         audit_config.log_file = "tls_client_audit.log";
         audit_config.enable_file_logging = true;
         audit_config.enable_async_logging = true;
-        audit_config.min_severity = nosql_db::security::AuditSeverity::INFO;
+        audit_config.min_severity = ishikura::security::AuditSeverity::INFO;
         
-        nosql_db::security::AuditManager::initialize(audit_config);
+        ishikura::security::AuditManager::initialize(audit_config);
     }
 }
 
@@ -121,7 +121,7 @@ bool TLSClient::connect() {
         
         // Log TLS handshake failure
         AUDIT_SECURITY("TLS handshake failed to " + config_.host + ":" + std::to_string(config_.port), 
-                      nosql_db::security::AuditSeverity::ERROR);
+                      ishikura::security::AuditSeverity::ERROR);
         
         connection_.reset();
         return false;
@@ -133,7 +133,7 @@ bool TLSClient::connect() {
         
         // Log certificate verification failure
         AUDIT_SECURITY("Server certificate verification failed for " + config_.host + ":" + std::to_string(config_.port), 
-                      nosql_db::security::AuditSeverity::ERROR);
+                      ishikura::security::AuditSeverity::ERROR);
         
         connection_.reset();
         return false;
@@ -149,10 +149,10 @@ bool TLSClient::connect() {
               << ", Cipher: " << get_cipher_name() << std::endl;
     
     // Log successful TLS connection
-    nosql_db::security::AuditManager::log_security(
+    ishikura::security::AuditManager::log_security(
         "TLS client connected to " + config_.host + ":" + std::to_string(config_.port) + 
         ", Protocol: " + get_protocol_version() + ", Cipher: " + get_cipher_name(),
-        nosql_db::security::AuditSeverity::INFO);
+        ishikura::security::AuditSeverity::INFO);
     
     return true;
 }
@@ -685,4 +685,4 @@ std::string TLSClient::get_ssl_error_string(int error_code) const {
 }
 
 } // namespace network
-} // namespace nosql_db
+} // namespace ishikura

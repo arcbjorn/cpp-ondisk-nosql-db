@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <cstring>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 BinaryServer::BinaryServer(std::shared_ptr<storage::StorageEngine> storage)
     : BinaryServer(std::move(storage), ServerConfig{}) {
@@ -723,4 +723,4 @@ void BinaryServer::stop_metrics_monitoring() {
     }
 }
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

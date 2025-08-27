@@ -1,7 +1,7 @@
 #include "storage/storage_engine.hpp"
 #include <spdlog/spdlog.h>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 StorageEngine::StorageEngine(const std::filesystem::path& data_directory, EngineType type)
     : engine_type_(type), data_dir_(data_directory) {
@@ -167,4 +167,4 @@ void StorageEngine::update_stats_delete() const {
     stats_.total_deletes++;
 }
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <algorithm>
 
-using namespace nosql_db::security;
+using namespace ishikura::security;
 
 void print_usage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [options] <command> [args...]\\n"
@@ -119,7 +119,7 @@ void print_key_info(const ApiKey& key) {
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "NoSQL DB API Key Manager" << std::endl;
+    std::cout << "IshikuraDB（石蔵） API Key Manager" << std::endl;
     std::cout << "========================" << std::endl;
     
     std::string storage_path = "api_keys.db";

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 size_t BTreeNode::find_key_index(const std::string& key) const {
     auto it = std::lower_bound(entries.begin(), entries.end(), key,
@@ -198,4 +198,4 @@ void BTreeIndex::print_node(const BTreeNode* node, size_t depth) const {
     }
 }
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-using namespace nosql_db::network;
+using namespace ishikura::network;
 
 void print_usage(const char* program_name) {
     std::cout << "Usage: " << program_name << " [options] [command]\n"
@@ -228,7 +228,7 @@ void run_benchmark(TLSClient& client) {
 }
 
 int main(int argc, char* argv[]) {
-    std::cout << "NoSQL DB TLS Client Demo" << std::endl;
+    std::cout << "IshikuraDB（石蔵） TLS Client Demo" << std::endl;
     std::cout << "========================" << std::endl;
     
     // Configuration
