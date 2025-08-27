@@ -473,6 +473,12 @@ BatchResult BatchProcessor::execute_single_item(const BatchItem& item) {
             
             case BatchItem::GET: {
                 auto value = storage_->get(item.key);
+                
+                // Filter out tombstone markers (deleted keys)
+                if (value && *value == "__DELETED__") {
+                    value = std::nullopt;
+                }
+                
                 if (value) {
                     result.status = StatusCode::SUCCESS;
                     result.value = *value;
