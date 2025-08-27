@@ -549,6 +549,12 @@ void BinaryServer::handle_get_request(SessionConnectionPtr conn, const BinaryMes
     }
     
     auto value = storage_->get(get_data->key);
+    
+    // Filter out tombstone markers (deleted keys)
+    if (value && *value == "__DELETED__") {
+        value = std::nullopt;
+    }
+    
     StatusCode status = value ? StatusCode::SUCCESS : StatusCode::KEY_NOT_FOUND;
     
     auto response = MessageBuilder::create_get_response(request.message_id(), status, 
@@ -634,8 +640,19 @@ void BinaryServer::handle_batch_request(SessionConnectionPtr conn, const BinaryM
                 }
                 case MessageType::GET_REQUEST: {
                     auto get_data = MessageParser::parse_get_request(operation);
-                    if (get_data && storage_->get(get_data->key)) {
-                        result = StatusCode::SUCCESS;
+                    if (get_data) {
+                        auto value = storage_->get(get_data->key);
+                        
+                        // Filter out tombstone markers (deleted keys)
+                        if (value && *value == "__DELETED__") {
+                            value = std::nullopt;
+                        }
+                        
+                        if (value) {
+                            result = StatusCode::SUCCESS;
+                        } else {
+                            result = StatusCode::KEY_NOT_FOUND;
+                        }
                     } else {
                         result = StatusCode::KEY_NOT_FOUND;
                     }
