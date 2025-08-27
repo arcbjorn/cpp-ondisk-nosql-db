@@ -216,6 +216,32 @@ public:
         std::chrono::system_clock::time_point last_event_time;
         std::atomic<size_t> current_buffer_size{0};
         std::atomic<size_t> current_file_size{0};
+        
+        // Custom copy constructor to handle atomic members
+        AuditStats() = default;
+        AuditStats(const AuditStats& other)
+            : total_events(other.total_events.load()),
+              events_written(other.events_written.load()),
+              events_dropped(other.events_dropped.load()),
+              buffer_overruns(other.buffer_overruns.load()),
+              write_errors(other.write_errors.load()),
+              last_event_time(other.last_event_time),
+              current_buffer_size(other.current_buffer_size.load()),
+              current_file_size(other.current_file_size.load()) {}
+        
+        AuditStats& operator=(const AuditStats& other) {
+            if (this != &other) {
+                total_events.store(other.total_events.load());
+                events_written.store(other.events_written.load());
+                events_dropped.store(other.events_dropped.load());
+                buffer_overruns.store(other.buffer_overruns.load());
+                write_errors.store(other.write_errors.load());
+                last_event_time = other.last_event_time;
+                current_buffer_size.store(other.current_buffer_size.load());
+                current_file_size.store(other.current_file_size.load());
+            }
+            return *this;
+        }
     };
     
     const AuditStats& stats() const { return stats_; }

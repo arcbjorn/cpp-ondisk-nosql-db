@@ -1062,4 +1062,52 @@ void ApiKeyManager::cleanup_expired_keys() {
     }
 }
 
+bool ApiKeyManager::update_rate_limits(const std::string& key_id, const RateLimit& limits) {
+    std::unique_lock<std::shared_mutex> lock(keys_mutex_);
+    auto it = keys_by_id_.find(key_id);
+    if (it == keys_by_id_.end()) {
+        return false;
+    }
+    
+    it->second.rate_limit = limits;
+    lock.unlock();
+    
+    // Save to storage
+    save_key_to_storage(it->second);
+    
+    return true;
+}
+
+bool ApiKeyManager::add_allowed_ip(const std::string& key_id, const std::string& ip_pattern) {
+    std::unique_lock<std::shared_mutex> lock(keys_mutex_);
+    auto it = keys_by_id_.find(key_id);
+    if (it == keys_by_id_.end()) {
+        return false;
+    }
+    
+    it->second.allowed_ips.push_back(ip_pattern);
+    lock.unlock();
+    
+    // Save to storage
+    save_key_to_storage(it->second);
+    
+    return true;
+}
+
+bool ApiKeyManager::add_resource_pattern(const std::string& key_id, const std::string& pattern) {
+    std::unique_lock<std::shared_mutex> lock(keys_mutex_);
+    auto it = keys_by_id_.find(key_id);
+    if (it == keys_by_id_.end()) {
+        return false;
+    }
+    
+    it->second.resource_patterns.insert(pattern);
+    lock.unlock();
+    
+    // Save to storage
+    save_key_to_storage(it->second);
+    
+    return true;
+}
+
 } // namespace nosql_db::security
