@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-NoSQL DB Security Vulnerability Scanner
+IshikuraDB（石蔵） Security Vulnerability Scanner
 
 This script performs automated security scanning for common vulnerabilities
-in the NoSQL database system including:
+in the IshikuraDB（石蔵） database system including:
 - Static code analysis
 - Configuration security checks  
 - Network security validation
@@ -492,7 +492,7 @@ class SecurityScanner:
         """Generate text security report"""
         report = []
         report.append("=" * 60)
-        report.append("NoSQL DB Security Scan Report")
+        report.append("IshikuraDB（石蔵） Security Scan Report")
         report.append("=" * 60)
         report.append(f"Project Root: {self.project_root}")
         report.append(f"Total Findings: {len(self.findings)}")
@@ -541,7 +541,7 @@ class SecurityScanner:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>NoSQL DB Security Scan Report</title>
+    <title>IshikuraDB（石蔵） Security Scan Report</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 40px; }}
         .header {{ background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }}
@@ -557,7 +557,7 @@ class SecurityScanner:
 </head>
 <body>
     <div class="header">
-        <h1>NoSQL DB Security Scan Report</h1>
+        <h1>IshikuraDB（石蔵） Security Scan Report</h1>
         <p>Project: {self.project_root}</p>
         <p>Scan Date: 2025-08-27</p>
     </div>
@@ -611,7 +611,7 @@ class SecurityScanner:
         return html
 
 def main():
-    parser = argparse.ArgumentParser(description="NoSQL DB Security Scanner")
+    parser = argparse.ArgumentParser(description="IshikuraDB（石蔵） Security Scanner")
     parser.add_argument("--project-root", default=".", 
                        help="Project root directory (default: current directory)")
     parser.add_argument("--output", choices=["text", "json", "html"], default="text",

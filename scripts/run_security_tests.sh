@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# NoSQL DB Security Testing Suite
+# IshikuraDB（石蔵） Security Testing Suite
 # Comprehensive security testing including unit tests and vulnerability scanning
 
 set -e
@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_ROOT/build"
 
-echo "🔐 NoSQL DB Security Testing Suite"
+echo "🔐 IshikuraDB（石蔵） Security Testing Suite"
 echo "=================================="
 echo "Project Root: $PROJECT_ROOT"
 echo "Build Directory: $BUILD_DIR"
@@ -134,17 +134,17 @@ test_tls_configuration() {
     cd "$BUILD_DIR"
     
     # Start TLS server in background for testing
-    if [ -f "./src/nosql_db_tls_server" ]; then
+    if [ -f "./src/ishikura_tls_server" ]; then
         log_info "Starting TLS server for configuration test..."
         
         # Generate test certificate if needed
         if [ ! -f "server.crt" ]; then
             log_info "Generating test certificate..."
-            ./src/nosql_db_tls_server --generate-cert > /dev/null 2>&1 || true
+            ./src/ishikura_tls_server --generate-cert > /dev/null 2>&1 || true
         fi
         
         # Start server in background
-        timeout 10 ./src/nosql_db_tls_server --port 19443 > /dev/null 2>&1 &
+        timeout 10 ./src/ishikura_tls_server --port 19443 > /dev/null 2>&1 &
         SERVER_PID=$!
         
         sleep 2  # Give server time to start
@@ -180,13 +180,13 @@ test_api_key_security() {
     
     cd "$BUILD_DIR"
     
-    if [ -f "./src/nosql_db_api_key_manager" ]; then
+    if [ -f "./src/ishikura_api_key_manager" ]; then
         # Create temporary test directory
         TEST_DIR="/tmp/nosql_security_test_$$"
         mkdir -p "$TEST_DIR"
         
         log_info "Testing API key generation..."
-        ./src/nosql_db_api_key_manager \
+        ./src/ishikura_api_key_manager \
             --storage "$TEST_DIR/test_keys.db" \
             generate "security_test" "test_user" \
             --permissions "read,write" > "$TEST_DIR/key_output.txt"
@@ -199,7 +199,7 @@ test_api_key_security() {
             
             if [ ! -z "$RAW_KEY" ]; then
                 log_info "Testing API key validation..."
-                ./src/nosql_db_api_key_manager \
+                ./src/ishikura_api_key_manager \
                     --storage "$TEST_DIR/test_keys.db" \
                     validate "$RAW_KEY" "read" > "$TEST_DIR/validation_output.txt"
                 
