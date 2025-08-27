@@ -1,6 +1,7 @@
-# NoSQL Database
+# IshikuraDB（石蔵）
+> In Japanese: *Stone Storehouse*
 
-A high-performance, ACID-compliant NoSQL database written in C++ with enterprise-grade security features.
+A high-performance, ACID-compliant database written in C++ with enterprise-grade security features.
 
 ## Features
 
@@ -23,28 +24,28 @@ make -j$(nproc)
 ### Run Server
 ```bash
 # Standard server
-./src/nosql_db_main --port 9090
+./src/ishikura_server --port 9090
 
 # TLS server with encryption
-./src/nosql_db_tls_server --port 9443 --cert server.crt --key server.key
+./src/ishikura_tls_server --port 9443 --cert server.crt --key server.key
 ```
 
 ### Client Operations
 ```bash
 # Basic client demo
-./src/nosql_db_client_demo
+./src/ishikura_client_demo
 
 # TLS client
-./src/nosql_db_tls_client --host localhost --port 9443
+./src/ishikura_tls_client --host localhost --port 9443
 ```
 
 ### API Key Management
 ```bash
 # Generate API key with permissions
-./src/nosql_db_api_key_manager generate "my-app" "user123" --permissions "read,write"
+./src/ishikura_api_key_manager generate "my-app" "user123" --permissions "read,write"
 
 # Validate API key
-./src/nosql_db_api_key_manager validate <api-key> "read"
+./src/ishikura_api_key_manager validate <api-key> "read"
 ```
 
 ## Testing
