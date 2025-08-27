@@ -16,6 +16,7 @@ add_library(nosql_db STATIC
     network/tls_client.cpp
     network/tls_utils.cpp
     security/auth.cpp
+    security/audit.cpp
 )
 
 target_link_libraries(nosql_db
