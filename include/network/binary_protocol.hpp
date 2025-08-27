@@ -7,7 +7,7 @@
 #include <optional>
 #include <memory>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 /**
  * Binary protocol for high-performance client-server communication
@@ -223,4 +223,4 @@ namespace MessageParser {
     std::vector<StatusCode> parse_batch_response(const BinaryMessage& msg);
 }
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

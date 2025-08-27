@@ -6,7 +6,7 @@
 #include <optional>
 #include <cstdint>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 struct IndexEntry {
     std::string key;
@@ -72,4 +72,4 @@ private:
     void print_node(const BTreeNode* node, size_t depth) const;
 };
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

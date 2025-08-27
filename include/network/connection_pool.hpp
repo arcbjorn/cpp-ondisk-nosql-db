@@ -11,7 +11,7 @@
 #include <queue>
 #include <string>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 /**
  * Session information for client connections
@@ -174,4 +174,4 @@ private:
     std::atomic<bool> active_{true};
 };
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

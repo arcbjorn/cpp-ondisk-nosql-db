@@ -5,7 +5,7 @@
 #include <memory>
 #include <filesystem>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 /**
  * StorageEngine provides a unified interface to the storage layer
@@ -85,4 +85,4 @@ private:
     void update_stats_delete() const;
 };
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

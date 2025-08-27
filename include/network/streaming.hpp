@@ -13,7 +13,7 @@
 #include <thread>
 #include <unordered_map>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 /**
  * Streaming operations for large result sets and real-time data
@@ -222,4 +222,4 @@ private:
 
 } // namespace BatchOps
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

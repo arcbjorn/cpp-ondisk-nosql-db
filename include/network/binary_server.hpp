@@ -13,7 +13,7 @@
 #include <mutex>
 #include <functional>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 /**
  * High-performance binary protocol server
@@ -228,4 +228,4 @@ private:
     bool set_socket_options();
 };
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

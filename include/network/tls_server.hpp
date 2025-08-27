@@ -15,13 +15,13 @@
 #include "binary_protocol.hpp"
 
 // Forward declarations
-namespace nosql_db {
+namespace ishikura {
     namespace storage {
         class StorageEngine;
     }
 }
 
-namespace nosql_db {
+namespace ishikura {
 namespace network {
 class NetworkMetrics;
 class ConnectionPool;
@@ -149,8 +149,8 @@ public:
         std::string log_file = "tls_server.log";
     };
     
-    explicit TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage);
-    explicit TLSServer(std::shared_ptr<nosql_db::storage::StorageEngine> storage, 
+    explicit TLSServer(std::shared_ptr<ishikura::storage::StorageEngine> storage);
+    explicit TLSServer(std::shared_ptr<ishikura::storage::StorageEngine> storage, 
                        const ServerConfig& config);
     ~TLSServer();
     
@@ -217,7 +217,7 @@ private:
     
     // Server state
     ServerConfig config_;
-    std::shared_ptr<nosql_db::storage::StorageEngine> storage_;
+    std::shared_ptr<ishikura::storage::StorageEngine> storage_;
     std::shared_ptr<NetworkMetrics> metrics_;
     std::shared_ptr<ConnectionPool> connection_pool_;
     
@@ -366,7 +366,7 @@ namespace tls_utils {
  */
 struct CertificateInfo {
     std::string common_name = "localhost";
-    std::string organization = "NoSQL DB";
+    std::string organization = "IshikuraDB（石蔵）";
     std::string country = "US";
     int validity_days = 365;
     int key_size = 2048;
@@ -404,4 +404,4 @@ std::vector<std::string> get_supported_ciphers(SSL_CTX* ctx);
 } // namespace tls_utils
 
 } // namespace network
-} // namespace nosql_db
+} // namespace ishikura

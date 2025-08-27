@@ -7,7 +7,7 @@
 #include <memory>
 #include <string_view>
 
-namespace nosql_db::api {
+namespace ishikura::api {
 
 class KvController {
 public:
@@ -33,4 +33,4 @@ private:
     bool is_valid_key(std::string_view key);
 };
 
-} // namespace nosql_db::api
+} // namespace ishikura::api

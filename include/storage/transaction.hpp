@@ -8,7 +8,7 @@
 #include <mutex>
 #include <shared_mutex>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 class LogStorage;
 
@@ -107,4 +107,4 @@ private:
     std::unique_lock<std::shared_mutex> acquire_write_lock() const;
 };
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

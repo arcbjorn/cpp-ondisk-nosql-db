@@ -7,7 +7,7 @@
 #include <optional>
 #include <functional>
 
-namespace nosql_db::query {
+namespace ishikura::query {
 
 /**
  * Query result containing matched key-value pairs with metadata
@@ -146,4 +146,4 @@ private:
     std::pair<int, int> parse_limit_offset(const std::string& limit_clause);
 };
 
-} // namespace nosql_db::query
+} // namespace ishikura::query

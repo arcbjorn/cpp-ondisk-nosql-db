@@ -12,7 +12,7 @@
 #include <optional>
 #include <functional>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 /**
  * API key permissions for fine-grained access control
@@ -438,4 +438,4 @@ ApiPermission string_list_to_permission(const std::vector<std::string>& permissi
 std::string status_to_string(ApiKeyStatus status);
 ApiKeyStatus string_to_status(const std::string& status_str);
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

@@ -9,7 +9,7 @@
 #include <memory>
 #include <thread>
 
-namespace nosql_db::network {
+namespace ishikura::network {
 
 /**
  * Network metrics collection and monitoring
@@ -225,4 +225,4 @@ private:
     std::string generate_report();
 };
 
-} // namespace nosql_db::network
+} // namespace ishikura::network

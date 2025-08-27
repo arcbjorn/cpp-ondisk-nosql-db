@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <mutex>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 /**
  * Data encryption and key management for NoSQL database
@@ -274,4 +274,4 @@ namespace crypto_utils {
     bool verify_integrity(const std::vector<uint8_t>& data, uint32_t expected_crc);
 }
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

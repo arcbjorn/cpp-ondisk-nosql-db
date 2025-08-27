@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_set>
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 /**
  * LSMTree implements a Log-Structured Merge Tree for efficient storage
@@ -130,4 +130,4 @@ private:
     bool is_tombstone(const std::string& value) const { return value == "__DELETED__"; }
 };
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

@@ -9,7 +9,7 @@
 #include <shared_mutex>
 #include "btree_index.hpp"
 
-namespace nosql_db::storage {
+namespace ishikura::storage {
 
 struct Record {
     std::string key;
@@ -47,4 +47,4 @@ private:
     void rebuild_index();
 };
 
-} // namespace nosql_db::storage
+} // namespace ishikura::storage

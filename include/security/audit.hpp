@@ -13,7 +13,7 @@
 #include <condition_variable>
 #include <functional>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 /**
  * Audit event types for comprehensive logging
@@ -380,18 +380,18 @@ private:
 
 // Macros for convenient audit logging
 #define AUDIT_AUTH(user, addr, success) \
-    nosql_db::security::AuditManager::log_auth(user, addr, success)
+    ishikura::security::AuditManager::log_auth(user, addr, success)
 
 #define AUDIT_ACCESS(user, op, resource, success) \
-    nosql_db::security::AuditManager::log_access(user, op, resource, success)
+    ishikura::security::AuditManager::log_access(user, op, resource, success)
 
 #define AUDIT_ADMIN(user, action, target, success) \
-    nosql_db::security::AuditManager::log_admin(user, action, target, success)
+    ishikura::security::AuditManager::log_admin(user, action, target, success)
 
 #define AUDIT_SECURITY(event, severity) \
-    nosql_db::security::AuditManager::log_security(event, severity)
+    ishikura::security::AuditManager::log_security(event, severity)
 
 #define AUDIT_ERROR(error, context) \
-    nosql_db::security::AuditManager::log_error(error, context)
+    ishikura::security::AuditManager::log_error(error, context)
 
-} // namespace nosql_db::security
+} // namespace ishikura::security

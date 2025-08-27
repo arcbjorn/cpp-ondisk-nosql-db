@@ -11,7 +11,7 @@
 #include <shared_mutex>
 #include <functional>
 
-namespace nosql_db::security {
+namespace ishikura::security {
 
 /**
  * User authentication and session management
@@ -285,4 +285,4 @@ std::optional<Permission> string_to_permission(const std::string& perm_str);
 std::string role_to_string(Role role);
 std::optional<Role> string_to_role(const std::string& role_str);
 
-} // namespace nosql_db::security
+} // namespace ishikura::security
