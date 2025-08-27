@@ -526,6 +526,14 @@ bool AuditLogger::open_log_file() {
         return true;
     }
     
+    // Ensure log directory exists
+    try {
+        std::filesystem::create_directories(config_.log_directory);
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to create audit log directory {}: {}", config_.log_directory, e.what());
+        return false;
+    }
+    
     current_log_filename_ = generate_filename();
     log_file_ = std::make_unique<std::ofstream>(current_log_filename_, std::ios::app);
     
