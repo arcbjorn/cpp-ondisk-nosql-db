@@ -150,8 +150,8 @@ TEST_CASE("LatencyHistogram", "[network][metrics]") {
     }
     
     SECTION("Reset functionality") {
-        histogram.record(std::chrono::microseconds(1000));
-        histogram.record(std::chrono::microseconds(5000));
+        histogram.record(std::chrono::microseconds(500));   // < 1ms (bucket[0])
+        histogram.record(std::chrono::microseconds(2000));  // < 5ms (bucket[1])
         
         auto buckets_before = histogram.get_buckets();
         REQUIRE(buckets_before[0] + buckets_before[1] == 2);
