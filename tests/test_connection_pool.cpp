@@ -91,6 +91,7 @@ TEST_CASE("ManagedConnection - Basic Functionality", "[network][connection_pool]
     ConnectionPool::PoolConfig config;
     config.enable_rate_limiting = true;
     config.requests_per_second_limit = 10; // Low limit for testing
+    config.burst_limit = 0; // No burst for strict testing
     
     auto pool = std::make_shared<ConnectionPool>(config);
     
@@ -150,6 +151,7 @@ TEST_CASE("ConnectionPool - Rate Limiting", "[network][connection_pool]") {
     ConnectionPool::PoolConfig config;
     config.enable_rate_limiting = true;
     config.requests_per_second_limit = 5; // Very low for testing
+    config.burst_limit = 0; // No burst for strict testing
     
     ConnectionPool pool(config);
     
