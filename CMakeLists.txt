@@ -5,8 +5,16 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+# Security flags
+set(SECURITY_FLAGS "-fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE")
+set(SECURITY_LINK_FLAGS "-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -pie")
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic ${SECURITY_FLAGS}")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native ${SECURITY_FLAGS}")
+
+# Apply security link flags
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SECURITY_LINK_FLAGS}")
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SECURITY_LINK_FLAGS}")
 
 include(FetchContent)
 
