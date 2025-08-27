@@ -17,6 +17,7 @@ add_library(nosql_db STATIC
     network/tls_utils.cpp
     security/auth.cpp
     security/audit.cpp
+    security/api_key.cpp
 )
 
 target_link_libraries(nosql_db
@@ -73,5 +74,13 @@ add_executable(nosql_db_tls_client
 )
 
 target_link_libraries(nosql_db_tls_client
+    nosql_db
+)
+
+add_executable(nosql_db_api_key_manager
+    api_key_manager.cpp
+)
+
+target_link_libraries(nosql_db_api_key_manager
     nosql_db
 )
