@@ -79,7 +79,7 @@ ParsedQuery QueryEngine::parse_query(const std::string& query_string) {
             
         case QueryOp::RANGE:
             if (tokens.size() < 3) throw std::invalid_argument("RANGE requires start and end keys");
-            parsed_query.target = tokens[1] + ":" + tokens[2]; // Store as "start:end"
+            parsed_query.target = tokens[1] + "|" + tokens[2]; // Store as "start|end" to avoid colon confusion
             break;
             
         case QueryOp::PREFIX:
@@ -154,10 +154,10 @@ QueryPlan QueryEngine::create_execution_plan(const ParsedQuery& query) {
             break;
             
         case QueryOp::RANGE: {
-            auto colon_pos = query.target.find(':');
-            if (colon_pos != std::string::npos) {
-                std::string start = query.target.substr(0, colon_pos);
-                std::string end = query.target.substr(colon_pos + 1);
+            auto pipe_pos = query.target.find('|');
+            if (pipe_pos != std::string::npos) {
+                std::string start = query.target.substr(0, pipe_pos);
+                std::string end = query.target.substr(pipe_pos + 1);
                 plan.estimated_cost = estimate_range_cost(start, end);
             } else {
                 plan.estimated_cost = estimate_scan_cost();
@@ -208,10 +208,10 @@ std::vector<QueryResult> QueryEngine::execute_plan(const QueryPlan& plan, const 
         }
         
         case QueryOp::RANGE: {
-            auto colon_pos = query.target.find(':');
-            if (colon_pos != std::string::npos) {
-                std::string start = query.target.substr(0, colon_pos);
-                std::string end = query.target.substr(colon_pos + 1);
+            auto pipe_pos = query.target.find('|');
+            if (pipe_pos != std::string::npos) {
+                std::string start = query.target.substr(0, pipe_pos);
+                std::string end = query.target.substr(pipe_pos + 1);
                 results = range_query(start, end);
             }
             break;
