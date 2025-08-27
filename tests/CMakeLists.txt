@@ -6,6 +6,10 @@ add_executable(tests
     test_lsm_tree.cpp
     test_query_engine.cpp
     test_binary_protocol.cpp
+    test_network_metrics.cpp
+    test_connection_pool.cpp
+    test_binary_client.cpp
+    test_streaming.cpp
     test_main.cpp
 )
 
