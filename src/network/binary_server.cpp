@@ -18,18 +18,21 @@ BinaryServer::BinaryServer(std::shared_ptr<storage::StorageEngine> storage)
 BinaryServer::BinaryServer(std::shared_ptr<storage::StorageEngine> storage,
                           const ServerConfig& config)
     : config_(config), storage_(std::move(storage)),
-      query_engine_(std::make_unique<query::QueryEngine>(storage_)) {
+      query_engine_(std::make_unique<query::QueryEngine>(storage_)),
+      connection_pool_(std::make_shared<ConnectionPool>(config_.pool_config)),
+      metrics_(std::make_shared<NetworkMetrics>()) {
     
     if (!storage_) {
         throw std::invalid_argument("Storage engine cannot be null");
     }
     
     spdlog::info("BinaryServer initialized - host: {}:{}, max_connections: {}, workers: {}",
-                config_.host, config_.port, config_.max_connections, config_.worker_threads);
+                config_.host, config_.port, config_.pool_config.max_connections, config_.worker_threads);
 }
 
 BinaryServer::~BinaryServer() {
     stop();
+    stop_metrics_monitoring();
 }
 
 bool BinaryServer::start() {
@@ -51,6 +54,9 @@ bool BinaryServer::start() {
     
     running_.store(true);
     
+    // Start connection pool cleanup
+    connection_pool_->start_cleanup();
+    
     // Start worker threads
     worker_threads_.reserve(config_.worker_threads);
     for (size_t i = 0; i < config_.worker_threads; ++i) {
@@ -60,8 +66,8 @@ bool BinaryServer::start() {
     // Start accept thread
     accept_thread_ = std::thread(&BinaryServer::accept_loop, this);
     
-    // Start cleanup thread  
-    cleanup_thread_ = std::thread(&BinaryServer::cleanup_loop, this);
+    // Start metrics monitoring
+    start_metrics_monitoring();
     
     spdlog::info("BinaryServer started on {}:{}", config_.host, config_.port);
     return true;
@@ -75,16 +81,18 @@ void BinaryServer::stop() {
     spdlog::info("Stopping BinaryServer...");
     running_.store(false);
     
+    // Stop metrics monitoring
+    stop_metrics_monitoring();
+    
     // Close server socket to stop accepting new connections
     cleanup_server_socket();
+    
+    // Stop connection pool cleanup
+    connection_pool_->stop_cleanup();
     
     // Wait for threads to finish
     if (accept_thread_.joinable()) {
         accept_thread_.join();
-    }
-    
-    if (cleanup_thread_.joinable()) {
-        cleanup_thread_.join();
     }
     
     for (auto& worker : worker_threads_) {
@@ -154,7 +162,7 @@ bool BinaryServer::setup_server_socket() {
     }
     
     // Start listening
-    if (listen(server_socket_, static_cast<int>(config_.max_connections)) < 0) {
+    if (listen(server_socket_, static_cast<int>(config_.pool_config.max_connections)) < 0) {
         spdlog::error("Failed to listen on server socket: {}", strerror(errno));
         close(server_socket_);
         server_socket_ = -1;
@@ -242,8 +250,8 @@ void BinaryServer::accept_loop() {
                     stats_.active_connections.fetch_add(1);
                     
                     std::lock_guard<std::mutex> lock(connections_mutex_);
-                    connections_[conn->socket_fd] = conn;
-                    add_to_epoll(conn->socket_fd, EPOLLIN | EPOLLHUP | EPOLLERR);
+                    connections_[conn->managed_conn->socket()] = conn;
+                    add_to_epoll(conn->managed_conn->socket(), EPOLLIN | EPOLLHUP | EPOLLERR);
                 }
             } else {
                 // Existing connection has data
@@ -266,7 +274,7 @@ void BinaryServer::accept_loop() {
     spdlog::debug("Accept loop finished");
 }
 
-BinaryServer::ConnectionPtr BinaryServer::accept_connection() {
+BinaryServer::SessionConnectionPtr BinaryServer::accept_connection() {
     struct sockaddr_in client_addr{};
     socklen_t addr_len = sizeof(client_addr);
     
@@ -291,28 +299,75 @@ BinaryServer::ConnectionPtr BinaryServer::accept_connection() {
     inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
     std::string remote_address = std::string(client_ip) + ":" + std::to_string(ntohs(client_addr.sin_port));
     
-    spdlog::debug("Accepted connection from {}", remote_address);
-    return std::make_shared<ClientConnection>(client_fd, remote_address);
+    // Check if connection can be accepted by pool
+    if (!connection_pool_->can_accept_connection(client_ip)) {
+        spdlog::warn("Rejecting connection from {} - pool limits exceeded", remote_address);
+        metrics_->record_connection_rejected();
+        close(client_fd);
+        return nullptr;
+    }
+    
+    // Create session
+    std::string session_id = connection_pool_->create_session(client_fd, remote_address);
+    if (session_id.empty()) {
+        spdlog::warn("Failed to create session for {}", remote_address);
+        metrics_->record_connection_failed();
+        close(client_fd);
+        return nullptr;
+    }
+    
+    auto session = connection_pool_->get_session(session_id);
+    if (!session) {
+        spdlog::error("Session {} not found after creation", session_id);
+        close(client_fd);
+        return nullptr;
+    }
+    
+    auto managed_conn = std::make_unique<ManagedConnection>(client_fd, session, connection_pool_);
+    auto session_conn = std::make_shared<SessionConnection>(std::move(managed_conn));
+    
+    // Track successful connection
+    metrics_->record_connection_start();
+    metrics_->record_session_created();
+    
+    spdlog::debug("Accepted connection from {} with session {}", remote_address, session_id);
+    return session_conn;
 }
 
-void BinaryServer::close_connection(ConnectionPtr conn) {
-    if (conn && conn->active.load()) {
-        conn->active.store(false);
-        remove_from_epoll(conn->socket_fd);
-        close(conn->socket_fd);
+void BinaryServer::close_connection(SessionConnectionPtr conn) {
+    if (conn && conn->managed_conn && conn->managed_conn->is_active()) {
+        // Calculate connection duration
+        auto session = conn->managed_conn->session();
+        auto connection_duration = std::chrono::steady_clock::now() - session->created_at;
+        
+        // Track connection close
+        metrics_->record_connection_end(std::chrono::duration_cast<std::chrono::microseconds>(connection_duration));
+        metrics_->record_session_expired(std::chrono::duration_cast<std::chrono::microseconds>(connection_duration));
+        
+        conn->managed_conn->mark_inactive();
+        remove_from_epoll(conn->managed_conn->socket());
+        close(conn->managed_conn->socket());
         stats_.active_connections.fetch_sub(1);
-        spdlog::debug("Closed connection to {}", conn->remote_address);
+        spdlog::debug("Closed connection to {} (session {})", 
+                     conn->managed_conn->client_address(), conn->managed_conn->session_id());
     }
 }
 
-void BinaryServer::handle_client_data(ConnectionPtr conn) {
-    if (!conn || !conn->active.load()) {
+void BinaryServer::handle_client_data(SessionConnectionPtr conn) {
+    if (!conn || !conn->managed_conn || !conn->managed_conn->is_active()) {
+        return;
+    }
+    
+    // Check rate limiting
+    if (!conn->managed_conn->check_rate_limit()) {
+        spdlog::warn("Rate limit exceeded for {}", conn->managed_conn->client_address());
+        close_connection(conn);
         return;
     }
     
     // Read available data
     char buffer[4096];
-    ssize_t bytes_read = recv(conn->socket_fd, buffer, sizeof(buffer), MSG_DONTWAIT);
+    ssize_t bytes_read = recv(conn->managed_conn->socket(), buffer, sizeof(buffer), MSG_DONTWAIT);
     
     if (bytes_read <= 0) {
         if (bytes_read == 0 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
@@ -323,13 +378,13 @@ void BinaryServer::handle_client_data(ConnectionPtr conn) {
     }
     
     stats_.bytes_received.fetch_add(bytes_read);
-    update_connection_activity(conn);
+    conn->managed_conn->record_request(bytes_read);
     
     // Append to read buffer
     conn->read_buffer.insert(conn->read_buffer.end(), buffer, buffer + bytes_read);
     
     // Process complete messages
-    while (conn->active.load() && conn->read_buffer.size() >= HEADER_SIZE) {
+    while (conn->managed_conn->is_active() && conn->read_buffer.size() >= HEADER_SIZE) {
         BinaryMessage message;
         if (read_message(conn, message)) {
             process_message(conn, message);
@@ -340,7 +395,7 @@ void BinaryServer::handle_client_data(ConnectionPtr conn) {
     }
 }
 
-bool BinaryServer::read_message(ConnectionPtr conn, BinaryMessage& message) {
+bool BinaryServer::read_message(SessionConnectionPtr conn, BinaryMessage& message) {
     if (conn->read_buffer.size() < HEADER_SIZE) {
         return false;
     }
@@ -350,7 +405,7 @@ bool BinaryServer::read_message(ConnectionPtr conn, BinaryMessage& message) {
     std::memcpy(&header, conn->read_buffer.data(), HEADER_SIZE);
     
     if (header.magic != PROTOCOL_MAGIC || header.version != PROTOCOL_VERSION) {
-        spdlog::warn("Invalid message header from {}", conn->remote_address);
+        spdlog::warn("Invalid message header from {}", conn->managed_conn->client_address());
         close_connection(conn);
         return false;
     }
@@ -362,7 +417,7 @@ bool BinaryServer::read_message(ConnectionPtr conn, BinaryMessage& message) {
     
     // Deserialize complete message
     if (!message.deserialize(conn->read_buffer.data(), total_size)) {
-        spdlog::warn("Failed to deserialize message from {}", conn->remote_address);
+        spdlog::warn("Failed to deserialize message from {}", conn->managed_conn->client_address());
         close_connection(conn);
         return false;
     }
@@ -373,17 +428,17 @@ bool BinaryServer::read_message(ConnectionPtr conn, BinaryMessage& message) {
     return true;
 }
 
-bool BinaryServer::write_message(ConnectionPtr conn, const BinaryMessage& message) {
-    if (!conn || !conn->active.load()) {
+bool BinaryServer::write_message(SessionConnectionPtr conn, const BinaryMessage& message) {
+    if (!conn || !conn->managed_conn || !conn->managed_conn->is_active()) {
         return false;
     }
     
     auto serialized = message.serialize();
-    ssize_t bytes_sent = send(conn->socket_fd, serialized.data(), serialized.size(), MSG_NOSIGNAL);
+    ssize_t bytes_sent = send(conn->managed_conn->socket(), serialized.data(), serialized.size(), MSG_NOSIGNAL);
     
     if (bytes_sent < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            spdlog::debug("Failed to send message to {}: {}", conn->remote_address, strerror(errno));
+            spdlog::debug("Failed to send message to {}: {}", conn->managed_conn->client_address(), strerror(errno));
             close_connection(conn);
             return false;
         }
@@ -392,51 +447,83 @@ bool BinaryServer::write_message(ConnectionPtr conn, const BinaryMessage& messag
     
     stats_.bytes_sent.fetch_add(bytes_sent);
     stats_.total_responses.fetch_add(1);
-    update_connection_activity(conn);
+    conn->managed_conn->record_response(bytes_sent);
+    
+    // Track metrics
+    metrics_->record_bytes_sent(bytes_sent);
+    metrics_->record_message_sent();
+    
+    // Check for compression if enabled
+    if (message.has_flag(MessageFlags::COMPRESSED)) {
+        // Estimate original size (would need to be tracked properly in real implementation)
+        metrics_->record_compression(serialized.size() * 2, serialized.size()); // Rough estimate
+    }
     
     return bytes_sent == static_cast<ssize_t>(serialized.size());
 }
 
-void BinaryServer::process_message(ConnectionPtr conn, const BinaryMessage& request) {
-    if (!conn || !conn->active.load()) {
+void BinaryServer::process_message(SessionConnectionPtr conn, const BinaryMessage& request) {
+    if (!conn || !conn->managed_conn || !conn->managed_conn->is_active()) {
         return;
     }
     
+    auto start_time = std::chrono::steady_clock::now();
+    
     stats_.total_requests.fetch_add(1);
+    metrics_->record_request_start();
+    metrics_->record_bytes_received(request.total_size());
+    metrics_->record_message_received();
+    
+    bool request_successful = true;
     
     try {
         switch (request.type()) {
             case MessageType::PUT_REQUEST:
+                metrics_->record_request_by_type("PUT");
                 handle_put_request(conn, request);
                 break;
             case MessageType::GET_REQUEST:
+                metrics_->record_request_by_type("GET");
                 handle_get_request(conn, request);
                 break;
             case MessageType::DELETE_REQUEST:
+                metrics_->record_request_by_type("DELETE");
                 handle_delete_request(conn, request);
                 break;
             case MessageType::QUERY_REQUEST:
+                metrics_->record_request_by_type("QUERY");
                 handle_query_request(conn, request);
                 break;
             case MessageType::BATCH_REQUEST:
+                metrics_->record_request_by_type("BATCH");
                 handle_batch_request(conn, request);
                 break;
             case MessageType::PING:
+                metrics_->record_request_by_type("PING");
                 handle_ping_request(conn, request);
                 break;
             default:
+                request_successful = false;
+                metrics_->record_protocol_error();
                 send_error_response(conn, request.message_id(), 
                                   StatusCode::UNSUPPORTED_VERSION, "Unsupported message type");
                 break;
         }
     } catch (const std::exception& e) {
-        spdlog::error("Error processing message from {}: {}", conn->remote_address, e.what());
+        request_successful = false;
+        spdlog::error("Error processing message from {}: {}", conn->managed_conn->client_address(), e.what());
         send_error_response(conn, request.message_id(), StatusCode::SERVER_ERROR, e.what());
         stats_.errors.fetch_add(1);
+        metrics_->record_network_error();
     }
+    
+    // Record request completion metrics
+    auto end_time = std::chrono::steady_clock::now();
+    auto response_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    metrics_->record_request_end(response_time, request_successful);
 }
 
-void BinaryServer::handle_put_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_put_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto put_data = MessageParser::parse_put_request(request);
     if (!put_data) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST, 
@@ -450,10 +537,10 @@ void BinaryServer::handle_put_request(ConnectionPtr conn, const BinaryMessage& r
     auto response = MessageBuilder::create_put_response(request.message_id(), status);
     write_message(conn, response);
     
-    spdlog::debug("PUT {} = {} bytes from {}", put_data->key, put_data->value.size(), conn->remote_address);
+    spdlog::debug("PUT {} = {} bytes from {}", put_data->key, put_data->value.size(), conn->managed_conn->client_address());
 }
 
-void BinaryServer::handle_get_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_get_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto get_data = MessageParser::parse_get_request(request);
     if (!get_data) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST,
@@ -468,11 +555,11 @@ void BinaryServer::handle_get_request(ConnectionPtr conn, const BinaryMessage& r
                                                        value ? *value : "");
     write_message(conn, response);
     
-    spdlog::debug("GET {} from {} - {}", get_data->key, conn->remote_address, 
+    spdlog::debug("GET {} from {} - {}", get_data->key, conn->managed_conn->client_address(), 
                  value ? "found" : "not found");
 }
 
-void BinaryServer::handle_delete_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_delete_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto delete_data = MessageParser::parse_delete_request(request);
     if (!delete_data) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST,
@@ -486,11 +573,11 @@ void BinaryServer::handle_delete_request(ConnectionPtr conn, const BinaryMessage
     auto response = MessageBuilder::create_delete_response(request.message_id(), status);
     write_message(conn, response);
     
-    spdlog::debug("DELETE {} from {} - {}", delete_data->key, conn->remote_address,
+    spdlog::debug("DELETE {} from {} - {}", delete_data->key, conn->managed_conn->client_address(),
                  success ? "success" : "not found");
 }
 
-void BinaryServer::handle_query_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_query_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto query_data = MessageParser::parse_query_request(request);
     if (!query_data) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST,
@@ -513,14 +600,14 @@ void BinaryServer::handle_query_request(ConnectionPtr conn, const BinaryMessage&
         write_message(conn, response);
         
         spdlog::debug("QUERY '{}' from {} - {} results", query_data->query, 
-                     conn->remote_address, results.size());
+                     conn->managed_conn->client_address(), results.size());
         
     } catch (const std::exception& e) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST, e.what());
     }
 }
 
-void BinaryServer::handle_batch_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_batch_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto operations = MessageParser::parse_batch_request(request);
     if (operations.empty()) {
         send_error_response(conn, request.message_id(), StatusCode::INVALID_REQUEST,
@@ -578,31 +665,18 @@ void BinaryServer::handle_batch_request(ConnectionPtr conn, const BinaryMessage&
                                                          StatusCode::SUCCESS, results);
     write_message(conn, response);
     
-    spdlog::debug("BATCH {} operations from {}", operations.size(), conn->remote_address);
+    spdlog::debug("BATCH {} operations from {}", operations.size(), conn->managed_conn->client_address());
 }
 
-void BinaryServer::handle_ping_request(ConnectionPtr conn, const BinaryMessage& request) {
+void BinaryServer::handle_ping_request(SessionConnectionPtr conn, const BinaryMessage& request) {
     auto response = MessageBuilder::create_pong(request.message_id());
     write_message(conn, response);
 }
 
-void BinaryServer::send_error_response(ConnectionPtr conn, uint64_t message_id, 
+void BinaryServer::send_error_response(SessionConnectionPtr conn, uint64_t message_id, 
                                       StatusCode status, const std::string& error) {
     auto response = MessageBuilder::create_error(message_id, status, error);
     write_message(conn, response);
-}
-
-void BinaryServer::update_connection_activity(ConnectionPtr conn) {
-    if (conn) {
-        conn->last_activity = std::chrono::steady_clock::now();
-    }
-}
-
-bool BinaryServer::is_connection_expired(const ConnectionPtr& conn) const {
-    if (!conn) return true;
-    
-    auto now = std::chrono::steady_clock::now();
-    return (now - conn->last_activity) > config_.client_timeout;
 }
 
 void BinaryServer::worker_loop() {
@@ -617,37 +691,6 @@ void BinaryServer::worker_loop() {
     spdlog::debug("Worker thread finished");
 }
 
-void BinaryServer::cleanup_loop() {
-    spdlog::debug("Cleanup thread started");
-    
-    while (running_.load()) {
-        std::this_thread::sleep_for(std::chrono::seconds(10)); // Cleanup every 10 seconds
-        
-        std::vector<ConnectionPtr> expired_connections;
-        
-        {
-            std::lock_guard<std::mutex> lock(connections_mutex_);
-            for (auto it = connections_.begin(); it != connections_.end(); ) {
-                if (is_connection_expired(it->second)) {
-                    expired_connections.push_back(it->second);
-                    it = connections_.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
-        
-        // Close expired connections outside of the lock
-        for (auto& conn : expired_connections) {
-            spdlog::debug("Connection to {} expired", conn->remote_address);
-            close_connection(conn);
-            stats_.timeouts.fetch_add(1);
-        }
-    }
-    
-    spdlog::debug("Cleanup thread finished");
-}
-
 void BinaryServer::reset_stats() {
     stats_.total_connections.store(0);
     stats_.total_requests.store(0);
@@ -656,6 +699,28 @@ void BinaryServer::reset_stats() {
     stats_.bytes_received.store(0);
     stats_.errors.store(0);
     stats_.timeouts.store(0);
+}
+
+void BinaryServer::start_metrics_monitoring() {
+    if (!metrics_monitor_) {
+        MetricsMonitor::MonitorConfig monitor_config;
+        monitor_config.report_interval = std::chrono::seconds(30);
+        monitor_config.enable_console_output = true;
+        monitor_config.enable_file_output = true;
+        monitor_config.log_file_path = "binary_server_metrics.log";
+        
+        metrics_monitor_ = std::make_unique<MetricsMonitor>(metrics_, monitor_config);
+        metrics_monitor_->start();
+        spdlog::info("Metrics monitoring started");
+    }
+}
+
+void BinaryServer::stop_metrics_monitoring() {
+    if (metrics_monitor_) {
+        metrics_monitor_->stop();
+        metrics_monitor_.reset();
+        spdlog::info("Metrics monitoring stopped");
+    }
 }
 
 } // namespace nosql_db::network

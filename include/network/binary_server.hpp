@@ -1,6 +1,8 @@
 #pragma once
 
 #include "network/binary_protocol.hpp"
+#include "network/connection_pool.hpp"
+#include "network/metrics.hpp"
 #include "storage/storage_engine.hpp"
 #include "query/query_engine.hpp"
 #include <memory>
@@ -29,13 +31,13 @@ public:
     struct ServerConfig {
         std::string host = "0.0.0.0";
         uint16_t port = 9090;
-        size_t max_connections = 1000;
         size_t worker_threads = std::thread::hardware_concurrency();
         size_t max_message_size = MAX_MESSAGE_SIZE;
-        std::chrono::seconds client_timeout{300}; // 5 minutes
-        std::chrono::seconds keepalive_interval{60}; // 1 minute
         bool enable_compression = false;
         bool enable_batching = true;
+        
+        // Connection pool configuration
+        ConnectionPool::PoolConfig pool_config;
     };
 
     explicit BinaryServer(std::shared_ptr<storage::StorageEngine> storage);
@@ -56,8 +58,14 @@ public:
 
     // Configuration
     const ServerConfig& config() const { return config_; }
-    void set_max_connections(size_t max_conn);
-    void set_client_timeout(std::chrono::seconds timeout);
+    ConnectionPool& connection_pool() { return *connection_pool_; }
+    const ConnectionPool& connection_pool() const { return *connection_pool_; }
+    
+    // Metrics access
+    std::shared_ptr<NetworkMetrics> metrics() { return metrics_; }
+    const NetworkMetrics& metrics() const { return *metrics_; }
+    void start_metrics_monitoring();
+    void stop_metrics_monitoring();
 
     // Statistics
     struct ServerStats {
@@ -75,29 +83,25 @@ public:
     void reset_stats();
 
 private:
-    // Connection management
-    struct ClientConnection {
-        int socket_fd;
-        std::string remote_address;
-        std::chrono::steady_clock::time_point last_activity;
+    // Enhanced connection with session management
+    struct SessionConnection {
+        std::unique_ptr<ManagedConnection> managed_conn;
         std::vector<uint8_t> read_buffer;
         std::vector<uint8_t> write_buffer;
-        std::atomic<bool> active{true};
-        uint64_t next_message_id{1};
         
-        ClientConnection(int fd, const std::string& addr) 
-            : socket_fd(fd), remote_address(addr), 
-              last_activity(std::chrono::steady_clock::now()) {
+        SessionConnection(std::unique_ptr<ManagedConnection> conn) 
+            : managed_conn(std::move(conn)) {
             read_buffer.reserve(64 * 1024);  // 64KB read buffer
             write_buffer.reserve(64 * 1024); // 64KB write buffer
         }
     };
 
-    using ConnectionPtr = std::shared_ptr<ClientConnection>;
+    using SessionConnectionPtr = std::shared_ptr<SessionConnection>;
     
     ServerConfig config_;
     std::shared_ptr<storage::StorageEngine> storage_;
     std::unique_ptr<query::QueryEngine> query_engine_;
+    std::shared_ptr<ConnectionPool> connection_pool_;
     
     // Network state
     std::atomic<bool> running_{false};
@@ -107,45 +111,43 @@ private:
     // Threading
     std::vector<std::thread> worker_threads_;
     std::thread accept_thread_;
-    std::thread cleanup_thread_;
     
-    // Connection tracking
-    std::unordered_map<int, ConnectionPtr> connections_;
+    // Session-based connection tracking
+    std::unordered_map<int, SessionConnectionPtr> connections_;
     std::mutex connections_mutex_;
     
-    // Statistics
+    // Statistics and monitoring
     mutable ServerStats stats_;
+    std::shared_ptr<NetworkMetrics> metrics_;
+    std::unique_ptr<MetricsMonitor> metrics_monitor_;
     
     // Core server functions
     void accept_loop();
     void worker_loop();
-    void cleanup_loop();
     
     // Connection handling
     bool setup_server_socket();
     void cleanup_server_socket();
-    ConnectionPtr accept_connection();
-    void close_connection(ConnectionPtr conn);
-    void handle_client_data(ConnectionPtr conn);
+    SessionConnectionPtr accept_connection();
+    void close_connection(SessionConnectionPtr conn);
+    void handle_client_data(SessionConnectionPtr conn);
     
     // Message processing
-    bool read_message(ConnectionPtr conn, BinaryMessage& message);
-    bool write_message(ConnectionPtr conn, const BinaryMessage& message);
-    void process_message(ConnectionPtr conn, const BinaryMessage& request);
+    bool read_message(SessionConnectionPtr conn, BinaryMessage& message);
+    bool write_message(SessionConnectionPtr conn, const BinaryMessage& message);
+    void process_message(SessionConnectionPtr conn, const BinaryMessage& request);
     
     // Operation handlers
-    void handle_put_request(ConnectionPtr conn, const BinaryMessage& request);
-    void handle_get_request(ConnectionPtr conn, const BinaryMessage& request);
-    void handle_delete_request(ConnectionPtr conn, const BinaryMessage& request);
-    void handle_query_request(ConnectionPtr conn, const BinaryMessage& request);
-    void handle_batch_request(ConnectionPtr conn, const BinaryMessage& request);
-    void handle_ping_request(ConnectionPtr conn, const BinaryMessage& request);
+    void handle_put_request(SessionConnectionPtr conn, const BinaryMessage& request);
+    void handle_get_request(SessionConnectionPtr conn, const BinaryMessage& request);
+    void handle_delete_request(SessionConnectionPtr conn, const BinaryMessage& request);
+    void handle_query_request(SessionConnectionPtr conn, const BinaryMessage& request);
+    void handle_batch_request(SessionConnectionPtr conn, const BinaryMessage& request);
+    void handle_ping_request(SessionConnectionPtr conn, const BinaryMessage& request);
     
     // Utility functions
-    void send_error_response(ConnectionPtr conn, uint64_t message_id, 
+    void send_error_response(SessionConnectionPtr conn, uint64_t message_id, 
                            StatusCode status, const std::string& error = "");
-    bool is_connection_expired(const ConnectionPtr& conn) const;
-    void update_connection_activity(ConnectionPtr conn);
     
     // Platform-specific I/O
     bool setup_epoll();
