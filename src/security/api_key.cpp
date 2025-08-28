@@ -71,10 +71,12 @@ namespace {
         
         // Wildcard patterns (e.g., 192.168.*.*)
         std::string regex_pattern = pattern;
-        // First escape dots
-        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\."), "\\\\.");
-        // Then replace * with .*
-        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\*"), ".*");
+        // First replace * with a placeholder to avoid dot escaping conflicts
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\*"), "WILDCARD_PLACEHOLDER");
+        // Then escape literal dots
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\."), "\\.");
+        // Finally replace placeholder with .*
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("WILDCARD_PLACEHOLDER"), ".*");
         
         try {
             std::regex pattern_regex("^" + regex_pattern + "$");
@@ -646,9 +648,15 @@ bool ApiKeyManager::match_pattern(const std::string& value, const std::string& p
     // Simple wildcard matching
     try {
         std::string regex_pattern = pattern;
-        std::replace(regex_pattern.begin(), regex_pattern.end(), '*', '.');
+        
+        // First replace * with a placeholder to avoid dot escaping conflicts
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\*"), "WILDCARD_PLACEHOLDER");
+        
+        // Then escape literal dots
         regex_pattern = std::regex_replace(regex_pattern, std::regex("\\."), "\\.");
-        regex_pattern = std::regex_replace(regex_pattern, std::regex("\\*"), ".*");
+        
+        // Finally replace placeholder with .*
+        regex_pattern = std::regex_replace(regex_pattern, std::regex("WILDCARD_PLACEHOLDER"), ".*");
         
         std::regex pattern_regex("^" + regex_pattern + "$");
         return std::regex_match(value, pattern_regex);
