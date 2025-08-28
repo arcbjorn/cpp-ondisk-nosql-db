@@ -1,6 +1,5 @@
 ---
-title: API
-layout: page
+title: API Reference
 ---
 
 # API Reference

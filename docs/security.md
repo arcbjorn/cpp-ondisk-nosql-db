@@ -1,6 +1,5 @@
 ---
 title: Security
-layout: page
 ---
 
 # Security Model

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title }} | {{ site.title }}</title>
+  <meta name="description" content="{{ site.description }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+</head>
+
+<body>
+  <nav class="container-fluid">
+    <ul>
+      <li><strong><a href="{{ '/' | relative_url }}">{{ site.title }}</a></strong></li>
+    </ul>
+    <ul>
+      <li><a href="{{ '/api.html' | relative_url }}">API</a></li>
+      <li><a href="{{ '/architecture.html' | relative_url }}">Architecture</a></li>
+      <li><a href="{{ '/security.html' | relative_url }}">Security</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    {{ content }}
+  </main>
+
+  <footer class="container">
+    <hr>
+    <p><small>{{ site.description }}</small></p>
+  </footer>
+</body>
+</html>

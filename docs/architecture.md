@@ -1,6 +1,5 @@
 ---
 title: Architecture
-layout: page
 ---
 
 # Architecture
