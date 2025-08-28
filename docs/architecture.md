@@ -2,8 +2,6 @@
 title: Architecture
 ---
 
-# IshikuraDB（石蔵） Architecture
-
 ## Overview
 
 This is a high-performance, secure IshikuraDB（石蔵） database system built in C++ with enterprise-grade security features. The system provides ACID transactions, multiple storage engines, binary protocol communications, TLS encryption, and comprehensive audit logging.

@@ -2,8 +2,7 @@
 title: Home
 ---
 
-# IshikuraDB（石蔵）
-> In Japanese: *Stone Storehouse*
+> *Stone Storehouse* in Japanese
 
 A high-performance, ACID-compliant database written in C++ with enterprise-grade security features.
 

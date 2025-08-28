@@ -2,8 +2,6 @@
 title: API Reference
 ---
 
-# IshikuraDB API Reference
-
 ## Binary Protocol
 
 IshikuraDB uses an efficient binary protocol for client-server communication.

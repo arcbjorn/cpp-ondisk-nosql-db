@@ -12,5 +12,11 @@ highlighter: rouge
 
 baseurl: /ishikura-db
 
+header_pages:
+  - index.md
+  - api.md
+  - architecture.md
+  - security.md
+
 github:
   repository_url: https://github.com/arcbjorn/cpp-ondisk-nosql-db
