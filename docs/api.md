@@ -1,6 +1,9 @@
 ---
-title: API Reference
+title: API
+layout: page
 ---
+
+# API Reference
 
 ## Binary Protocol
 

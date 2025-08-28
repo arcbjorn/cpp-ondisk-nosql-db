@@ -1,6 +1,9 @@
 ---
 title: Security
+layout: page
 ---
+
+# Security Model
 
 ## Threat Model
 

@@ -1,5 +1,6 @@
 ---
-title: Home
+title: IshikuraDB
+layout: home
 ---
 
 > *Stone Storehouse* in Japanese

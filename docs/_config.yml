@@ -1,7 +1,8 @@
-title: IshikuraDB Documentation
+title: IshikuraDB
 description: High-performance, ACID-compliant database written in C++
 
 theme: minima
+show_excerpts: false
 
 plugins:
   - jekyll-feed

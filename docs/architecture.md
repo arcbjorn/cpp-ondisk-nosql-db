@@ -1,6 +1,9 @@
 ---
 title: Architecture
+layout: page
 ---
+
+# Architecture
 
 ## Overview
 
