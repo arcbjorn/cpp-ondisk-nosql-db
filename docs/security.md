@@ -1,3 +1,7 @@
+---
+title: Security
+---
+
 # IshikuraDB Security Model
 
 ## Threat Model

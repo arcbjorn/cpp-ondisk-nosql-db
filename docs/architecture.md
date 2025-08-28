@@ -1,3 +1,7 @@
+---
+title: Architecture
+---
+
 # IshikuraDB（石蔵） Architecture
 
 ## Overview

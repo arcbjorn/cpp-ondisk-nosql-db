@@ -1,3 +1,7 @@
+---
+title: Home
+---
+
 # IshikuraDB（石蔵）
 > In Japanese: *Stone Storehouse*
 

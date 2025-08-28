@@ -10,15 +10,7 @@ plugins:
 markdown: kramdown
 highlighter: rouge
 
-navigation:
-  - title: Home
-    url: /
-  - title: API Reference
-    url: /api
-  - title: Architecture
-    url: /architecture  
-  - title: Security
-    url: /security
+baseurl: /ishikura-db
 
 github:
-  repository_url: https://github.com/username/cpp-ondisk-nosql-db
+  repository_url: https://github.com/arcbjorn/cpp-ondisk-nosql-db

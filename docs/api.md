@@ -1,3 +1,7 @@
+---
+title: API Reference
+---
+
 # IshikuraDB API Reference
 
 ## Binary Protocol
