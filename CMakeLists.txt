@@ -9,8 +9,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(SECURITY_FLAGS "-fstack-protector-strong -D_FORTIFY_SOURCE=2 -fPIE")
 set(SECURITY_LINK_FLAGS "-Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -pie")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic ${SECURITY_FLAGS}")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native ${SECURITY_FLAGS}")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic -Wsign-conversion -Wshadow -Wconversion -Wnull-dereference -Wunused ${SECURITY_FLAGS}")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native -Wall -Wextra ${SECURITY_FLAGS}")
 
 # Apply security link flags
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SECURITY_LINK_FLAGS}")

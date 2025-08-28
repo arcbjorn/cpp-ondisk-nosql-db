@@ -37,7 +37,7 @@ TEST_CASE("ConnectionPool - Basic Functionality", "[network][connection_pool]") 
         // Try to create max_connections_per_ip + 1 connections from same IP
         std::vector<std::string> sessions;
         
-        for (int i = 0; i < config.max_connections_per_ip; ++i) {
+        for (size_t i = 0; i < config.max_connections_per_ip; ++i) {
             std::string session_id = pool.create_session(i + 1, "192.168.1.100:123" + std::to_string(i));
             REQUIRE_FALSE(session_id.empty());
             sessions.push_back(session_id);
@@ -55,7 +55,7 @@ TEST_CASE("ConnectionPool - Basic Functionality", "[network][connection_pool]") 
         std::vector<std::string> sessions;
         
         // Use different IPs to avoid per-IP limits
-        for (int i = 0; i < config.max_connections; ++i) {
+        for (size_t i = 0; i < config.max_connections; ++i) {
             std::string ip = "10.0." + std::to_string(i / 256) + "." + std::to_string(i % 256);
             std::string session_id = pool.create_session(i + 1, ip + ":12345");
             
@@ -127,7 +127,7 @@ TEST_CASE("ManagedConnection - Basic Functionality", "[network][connection_pool]
         REQUIRE(conn.check_rate_limit());
         
         // Simulate many requests in quick succession
-        auto start_time = std::chrono::steady_clock::now();
+        [[maybe_unused]] auto start_time = std::chrono::steady_clock::now();
         int allowed_requests = 0;
         
         for (int i = 0; i < 20; ++i) {
@@ -138,7 +138,7 @@ TEST_CASE("ManagedConnection - Basic Functionality", "[network][connection_pool]
         }
         
         // Should have been rate limited (not all 20 requests allowed)
-        REQUIRE(allowed_requests <= config.requests_per_second_limit);
+        REQUIRE(allowed_requests <= static_cast<int>(config.requests_per_second_limit));
     }
     
     SECTION("Lifecycle management") {
@@ -173,7 +173,7 @@ TEST_CASE("ConnectionPool - Rate Limiting", "[network][connection_pool]") {
         }
         
         // Should be rate limited
-        REQUIRE(successful_requests <= config.requests_per_second_limit);
+        REQUIRE(successful_requests <= static_cast<int>(config.requests_per_second_limit));
     }
 }
 

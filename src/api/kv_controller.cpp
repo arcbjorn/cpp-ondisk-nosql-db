@@ -12,7 +12,7 @@ KvController::KvController(std::shared_ptr<storage::StorageEngine> storage)
 
 void KvController::register_routes(httplib::Server& server) {
     // Enable CORS for web clients
-    server.set_pre_routing_handler([](const httplib::Request& req, httplib::Response& res) {
+    server.set_pre_routing_handler([](const httplib::Request& /*req*/, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
         res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -73,7 +73,7 @@ void KvController::handle_put_key(const httplib::Request& req, httplib::Response
         // Validate JSON if Content-Type is application/json
         if (req.get_header_value("Content-Type") == "application/json") {
             try {
-                json::parse(req.body); // Validate JSON format
+                [[maybe_unused]] auto parsed = json::parse(req.body); // Validate JSON format
             } catch (const json::exception& e) {
                 send_error_response(res, 400, "Invalid JSON format: " + std::string(e.what()));
                 return;
@@ -227,7 +227,7 @@ void KvController::handle_list_keys(const httplib::Request& req, httplib::Respon
     }
 }
 
-void KvController::handle_health(const httplib::Request& req, httplib::Response& res) {
+void KvController::handle_health(const httplib::Request& /*req*/, httplib::Response& res) {
     json response = {
         {"status", "healthy"},
         {"service", "nosql-db"},

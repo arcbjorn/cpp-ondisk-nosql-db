@@ -18,6 +18,9 @@ namespace ishikura::security {
  * API key permissions for fine-grained access control
  */
 enum class ApiPermission : uint16_t {
+    // No permissions
+    NONE = 0x0000,
+    
     // Data operations
     READ = 0x0001,
     WRITE = 0x0002,

@@ -425,7 +425,7 @@ std::vector<QueryResult> QueryEngine::apply_pagination(std::vector<QueryResult> 
     return results;
 }
 
-size_t QueryEngine::estimate_range_cost(const std::string& start_key, const std::string& end_key) const {
+size_t QueryEngine::estimate_range_cost(const std::string& /*start_key*/, const std::string& /*end_key*/) const {
     // Estimate based on key space - in a real implementation, 
     // we'd use index statistics
     return 100; // Placeholder cost
@@ -483,7 +483,7 @@ QueryCondition QueryEngine::parse_where_clause(const std::string& where_clause) 
     return QueryCondition{}; // Default fallback
 }
 
-std::pair<int, int> QueryEngine::parse_limit_offset(const std::string& limit_clause) {
+std::pair<int, int> QueryEngine::parse_limit_offset(const std::string& /*limit_clause*/) {
     // This would parse complex LIMIT/OFFSET clauses
     return {-1, 0}; // Placeholder
 }
