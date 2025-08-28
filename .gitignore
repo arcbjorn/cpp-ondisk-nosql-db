@@ -55,4 +55,5 @@ Thumbs.db
 conan.lock
 vcpkg_installed/
 
-INSTRUCTIONS.md
+# Documentation
+CLAUDE.md
