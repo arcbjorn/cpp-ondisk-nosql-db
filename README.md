@@ -84,7 +84,7 @@ Server configuration via JSON:
 
 ## Documentation
 
-- [Architecture Guide](ARCHITECTURE.md) - Complete system design
+- [Architecture Guide](docs/architecture.md) - Complete system design
 - [Security Model](docs/security.md) - Threat analysis and controls
 - [API Reference](docs/api.md) - Protocol specification
 
@@ -97,4 +97,4 @@ Server configuration via JSON:
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see [LICENSE.md](LICENSE.md) for details.
