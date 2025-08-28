@@ -1,0 +1,24 @@
+title: IshikuraDB Documentation
+description: High-performance, ACID-compliant database written in C++
+
+theme: minima
+
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+markdown: kramdown
+highlighter: rouge
+
+navigation:
+  - title: Home
+    url: /
+  - title: API Reference
+    url: /api
+  - title: Architecture
+    url: /architecture  
+  - title: Security
+    url: /security
+
+github:
+  repository_url: https://github.com/username/cpp-ondisk-nosql-db
