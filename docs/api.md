@@ -21,13 +21,13 @@ Store a key-value pair.
 
 **Request:**
 ```
-message_type: 1
+message_type: 0x0001
 payload: [key_size][key][value_size][value]
 ```
 
 **Response:**
 ```
-message_type: 101
+message_type: 0x0002
 payload: [status_code]
 ```
 
@@ -36,13 +36,13 @@ Retrieve value for a key.
 
 **Request:**
 ```
-message_type: 2
+message_type: 0x0003
 payload: [key_size][key]
 ```
 
 **Response:**
 ```
-message_type: 102
+message_type: 0x0004
 payload: [status_code][value_size][value]
 ```
 
@@ -51,13 +51,13 @@ Remove a key-value pair.
 
 **Request:**
 ```
-message_type: 3
+message_type: 0x0005
 payload: [key_size][key]
 ```
 
 **Response:**
 ```
-message_type: 103
+message_type: 0x0006
 payload: [status_code]
 ```
 
@@ -66,13 +66,13 @@ Execute query operations (SCAN, PREFIX, RANGE, COUNT).
 
 **Request:**
 ```
-message_type: 4
+message_type: 0x0020
 payload: [query_size][query_string]
 ```
 
 **Response:**
 ```
-message_type: 104
+message_type: 0x0021
 payload: [status_code][result_count][results...]
 ```
 
@@ -87,7 +87,7 @@ Execute multiple operations atomically.
 
 **Request:**
 ```
-message_type: 5
+message_type: 0x0010
 payload: [item_count][items...]
 ```
 
@@ -98,7 +98,7 @@ payload: [item_count][items...]
 
 **Response:**
 ```
-message_type: 105
+message_type: 0x0011
 payload: [status_code][result_count][results...]
 ```
 
@@ -107,13 +107,13 @@ Health check operation.
 
 **Request:**
 ```
-message_type: 6
+message_type: 0x0100
 payload: []
 ```
 
 **Response:**
 ```
-message_type: 106
+message_type: 0x0101
 payload: [status_code]
 ```
 

@@ -12,6 +12,12 @@ A high-performance, ACID-compliant database written in C++ with enterprise-grade
 - **Audit Logging** - Comprehensive security event tracking
 - **Binary Protocol** - Efficient wire format for high performance
 
+## Requirements
+
+- **C++23** compatible compiler (GCC 13+, Clang 16+)
+- **CMake 3.23** or later
+- **OpenSSL** development libraries
+
 ## Quick Start
 
 ### Build
