@@ -376,13 +376,18 @@ bool AuditLogger::should_log_event(const AuditEvent& event) const {
 }
 
 void AuditLogger::worker_thread() {
-    while (running_.load() || !event_buffer_.empty() || !priority_buffer_.empty()) {
+    while (true) {
         std::unique_lock<std::mutex> lock(buffer_mutex_);
         
         // Wait for events or shutdown
         buffer_cv_.wait_for(lock, config_.flush_interval, [this] {
             return !event_buffer_.empty() || !priority_buffer_.empty() || shutdown_requested_.load();
         });
+        
+        // Check if we should exit (shutdown requested and buffers are empty)
+        if (shutdown_requested_.load() && event_buffer_.empty() && priority_buffer_.empty()) {
+            break;
+        }
         
         // Process priority events first
         std::queue<AuditEvent> priority_events;
@@ -526,15 +531,19 @@ bool AuditLogger::open_log_file() {
         return true;
     }
     
-    // Ensure log directory exists
+    current_log_filename_ = generate_filename();
+    
+    // Ensure log directory exists (extract from filename if it's a full path)
     try {
-        std::filesystem::create_directories(config_.log_directory);
+        std::filesystem::path log_path(current_log_filename_);
+        std::filesystem::path log_dir = log_path.parent_path();
+        if (!log_dir.empty()) {
+            std::filesystem::create_directories(log_dir);
+        }
     } catch (const std::exception& e) {
-        spdlog::error("Failed to create audit log directory {}: {}", config_.log_directory, e.what());
+        spdlog::error("Failed to create audit log directory for {}: {}", current_log_filename_, e.what());
         return false;
     }
-    
-    current_log_filename_ = generate_filename();
     log_file_ = std::make_unique<std::ofstream>(current_log_filename_, std::ios::app);
     
     if (!log_file_->is_open()) {
@@ -558,9 +567,13 @@ void AuditLogger::close_log_file() {
 }
 
 std::string AuditLogger::generate_filename() const {
-    auto now = std::chrono::system_clock::now();
-    auto time_t = std::chrono::system_clock::to_time_t(now);
+    // Check if log_file is already a full path
+    if (config_.log_file.front() == '/' || config_.log_file.find(':') != std::string::npos) {
+        // Full path provided, use as-is
+        return config_.log_file;
+    }
     
+    // Relative path, combine with log_directory
     std::ostringstream oss;
     oss << config_.log_directory << "/" << config_.log_file;
     
@@ -674,8 +687,13 @@ std::string AuditLogger::sanitize_data(const std::string& data) const {
     
     // Redact sensitive fields
     for (const auto& sensitive_field : config_.sensitive_fields) {
-        std::regex pattern(sensitive_field + R"(\s*[=:]\s*[^,\s}]+)", std::regex_constants::icase);
-        sanitized = std::regex_replace(sanitized, pattern, sensitive_field + "=***REDACTED***");
+        // Handle JSON format: "field": "value" or field: "value"
+        std::regex json_pattern(R"("?)" + sensitive_field + R"("\s*:\s*"[^"]*")", std::regex_constants::icase);
+        sanitized = std::regex_replace(sanitized, json_pattern, "\"" + sensitive_field + "\": \"[REDACTED]\"");
+        
+        // Handle key-value format: field=value or field: value
+        std::regex kv_pattern(sensitive_field + R"(\s*[=:]\s*[^,\s}]+)", std::regex_constants::icase);
+        sanitized = std::regex_replace(sanitized, kv_pattern, sensitive_field + "=[REDACTED]");
     }
     
     return sanitized;
